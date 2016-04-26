@@ -18,7 +18,8 @@ class Importer(object):
 
 		self.file_name = file_name
 
-		year, month = file_name[-(self.FILE_EXTENSION_LENGTH + self.EXPECTED_FILE_NAME_LENGTH):self.EXPECTED_FILE_NAME_LENGTH].split('-')
+		start_index = -(self.FILE_EXTENSION_LENGTH + self.EXPECTED_FILE_NAME_LENGTH)
+		year, month = file_name[start_index:][:self.EXPECTED_FILE_NAME_LENGTH].split('-')
 
 		self.year = int(year)
 		self.month = int(month)

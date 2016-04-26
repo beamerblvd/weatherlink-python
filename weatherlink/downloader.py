@@ -1,12 +1,14 @@
 import struct
-import pprint
 
 import requests
 
 from weatherlink.models import (
 	InstantaneousRecord,
-	convert_timestamp_to_datetime,
+	convert_datetime_to_timestamp,
 )
+
+
+_requests_session = requests.Session()
 
 
 class Downloader(object):
@@ -22,8 +24,41 @@ class Downloader(object):
 		self.username = username
 		self.password = password
 
+		self.console_version = None
+		self.archive_page_size = None
+		self.record_count = None
+		self.max_account_records = None
+		self.records = None
+
 	def download(self, from_datetime):
-		pass
+		timestamp=convert_datetime_to_timestamp(from_datetime)
+
+		url = self.WEATHER_LINK_URL.format(
+			timestamp=timestamp,
+			username=self.username,
+			password=self.password,
+			action=self.ACTION_HEADERS,
+		)
+		print 'Calling URL %s' % url
+
+		response = _requests_session.get(url)
+		assert response.headers['Content-Type'] == 'text/html', '%s' % response.headers['Content-Type']
+
+		self._process_headers(response.text)
+
+		url = self.WEATHER_LINK_URL.format(
+			timestamp=timestamp,
+			username=self.username,
+			password=self.password,
+			action=self.ACTION_DOWNLOAD,
+		)
+		print 'Calling URL %s' % url
+
+		response = _requests_session.get(url, stream=True)
+		assert response.headers['Content-Type'] == 'application/octet-stream', '%s' % response.headers['Content-Type']
+		assert response.headers['Content-Transfer-Encoding'] == 'binary', '%s' % response.headers['Content-Transfer-Encoding']
+
+		self._process_download(response.raw)
 
 	def _process_headers(self, header_response_text):
 		header_lines = header_response_text.splitlines()
@@ -40,19 +75,11 @@ class Downloader(object):
 		self.max_account_records = int(headers['MaxRecords'])
 
 	def _process_download(self, download_response_handle):
+		self.records = []
+
 		for i in range(0, self.record_count):
 			record = InstantaneousRecord.load_from_download(download_response_handle)
 			if not record:
 				break
 
-			pprint.pprint(record)
-		# while True:
-		#     raw_record = download_response_handle.read(self.ARCHIVE_RECORD_LENGTH)
-		#     if not raw_record:
-		#         break
-
-		#     date_time_stamps = struct.unpack_from('=hh', raw_record)
-		#     if date_time_stamps[0] < 1:
-		#         continue
-
-		#     print convert_timestamp_to_datetime((date_time_stamps[0] << 16) + date_time_stamps[1])
+			self.records.append(record)

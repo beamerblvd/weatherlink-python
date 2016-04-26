@@ -1,6 +1,12 @@
 import datetime
-from decimal import Decimal
+import decimal
 import struct
+
+"""
+The data formats in this file were obtained from Davis WeatherLink documentation in the following locations:
+  - http://www.davisnet.com/support/weather/download/VantageSerialProtocolDocs_v261.pdf
+  - C:/WeatherLink/Readmy 6.0.rtf
+"""
 
 DASH_LARGE = 32767
 DASH_LARGE_NEGATIVE = -32768
@@ -14,19 +20,19 @@ RAIN_COLLECTOR_TYPE_1_0_MM = 0x3000
 RAIN_COLLECTOR_TYPE_0_1_MM = 0x6000
 
 RAIN_COLLECTOR_TYPE_AMOUNT_TO_INCHES = {
-	RAIN_COLLECTOR_TYPE_0_1_IN: Decimal('0.1'),
-	RAIN_COLLECTOR_TYPE_0_01_IN: Decimal('0.01'),
-	RAIN_COLLECTOR_TYPE_0_2_MM: Decimal('0.00787402'),
-	RAIN_COLLECTOR_TYPE_1_0_MM: Decimal('0.0393701'),
-	RAIN_COLLECTOR_TYPE_0_1_MM: Decimal('0.00393701'),
+	RAIN_COLLECTOR_TYPE_0_1_IN: decimal.Decimal('0.1'),
+	RAIN_COLLECTOR_TYPE_0_01_IN: decimal.Decimal('0.01'),
+	RAIN_COLLECTOR_TYPE_0_2_MM: decimal.Decimal('0.00787402'),
+	RAIN_COLLECTOR_TYPE_1_0_MM: decimal.Decimal('0.0393701'),
+	RAIN_COLLECTOR_TYPE_0_1_MM: decimal.Decimal('0.00393701'),
 }
 
 RAIN_COLLECTOR_TYPE_AMOUNT_TO_CENTIMETERS = {
-	RAIN_COLLECTOR_TYPE_0_1_IN: Decimal('0.254'),
-	RAIN_COLLECTOR_TYPE_0_01_IN: Decimal('0.0254'),
-	RAIN_COLLECTOR_TYPE_0_2_MM: Decimal('0.02'),
-	RAIN_COLLECTOR_TYPE_1_0_MM: Decimal('0.1'),
-	RAIN_COLLECTOR_TYPE_0_1_MM: Decimal('0.01'),
+	RAIN_COLLECTOR_TYPE_0_1_IN: decimal.Decimal('0.254'),
+	RAIN_COLLECTOR_TYPE_0_01_IN: decimal.Decimal('0.0254'),
+	RAIN_COLLECTOR_TYPE_0_2_MM: decimal.Decimal('0.02'),
+	RAIN_COLLECTOR_TYPE_1_0_MM: decimal.Decimal('0.1'),
+	RAIN_COLLECTOR_TYPE_0_1_MM: decimal.Decimal('0.01'),
 }
 
 WIND_DIRECTION_CODE_MAP = [
@@ -50,22 +56,16 @@ WIND_DIRECTION_CODE_MAP = [
 
 STRAIGHT_NUMBER = int
 
-STRAIGHT_DECIMAL = Decimal
+STRAIGHT_DECIMAL = decimal.Decimal
 
-_TENTHS = Decimal('0.1')
+_TENTHS = decimal.Decimal('0.1')
 TENTHS = lambda x: x * _TENTHS
 
-_HUNDREDTHS = Decimal('0.01')
+_HUNDREDTHS = decimal.Decimal('0.01')
 HUNDREDTHS = lambda x: x * _HUNDREDTHS
 
-_THOUSANDTHS = Decimal('0.001')
+_THOUSANDTHS = decimal.Decimal('0.001')
 THOUSANDTHS = lambda x: x * _THOUSANDTHS
-
-
-def get_wind_direction_from_code(x):
-	if x == DASH_SMALL:
-		return None
-	return WIND_DIRECTION_CODE_MAP[x]
 
 
 def convert_datetime_to_timestamp(d):
