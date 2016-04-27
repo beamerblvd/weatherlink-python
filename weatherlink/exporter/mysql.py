@@ -252,23 +252,21 @@ class MySQLExporter(object):
 			if (year, month, day, ) in ymd:
 				continue
 
-			#self._recalculate_daily_summary(year, month, day)
+			self._recalculate_daily_summary(year, month, day)
 
 			y.add(year)
 			ym.add((year, month, ))
 			ymd.add((year, month, day, ))
 
-			week_year, week_number, _ = d.isocalendar()
+			week_year, week_number, _ = date.isocalendar()
 			if (week_year, week_number, ) in yw:
 				continue
 
+			yw.add((week_year, week_number, ))
 			ywdd.append((week_year, week_number, date, ))
 
-		print y
-		print ym
-		print ymd
-		print ywdd
-		return
+		y = sorted(list(y))
+		ym = sorted(list(ym))
 
 		for args in ywdd:
 			self._recalculate_weekly_summary(*args)
@@ -312,8 +310,8 @@ class MySQLExporter(object):
 				)
 				cursor.execute(query, [year, month, day])
 				for (wind_speed, wind_speed_direction, ) in cursor:
-					speed_queue.add(wind_speed)
-					direction_queue.add(wind_speed_direction)
+					speed_queue.append(wind_speed)
+					direction_queue.append(wind_speed_direction)
 
 					if len(speed_queue) == wind_records_to_include:
 						# This is the rolling average of the last 10 minutes
@@ -388,6 +386,8 @@ class MySQLExporter(object):
 
 			self._aggregate_degree_days_and_wind_averages(cursor, summary_id, where_clause, where_arguments)
 
+			self._connection.commit()
+
 	def _recalculate_monthly_summary(self, year, month):
 		with self._get_cursor() as cursor:
 			summary_id, _ = self._recalculate_summary_from_arguments(
@@ -408,6 +408,8 @@ class MySQLExporter(object):
 				[year, month],
 			)
 
+			self._connection.commit()
+
 	def _recalculate_yearly_summary(self, year):
 		with self._get_cursor() as cursor:
 			summary_id, _ = self._recalculate_summary_from_arguments(
@@ -427,6 +429,8 @@ class MySQLExporter(object):
 				"summary_type = 'MONTHLY' AND summary_year = %s",
 				[year],
 			)
+
+			self._connection.commit()
 
 	def _recalculate_all_time_summary(self):
 		pass
@@ -563,6 +567,7 @@ class MySQLExporter(object):
 		)
 
 	def find_new_rain_events(self):
+		found_rain_events = 0, ongoing_rain_events = 0
 		while True:
 			with self._get_cursor('SELECT max(timestamp_end) FROM weather_rain_event;', []) as cursor:
 				latest = cursor.fetchone()[0]
@@ -616,6 +621,9 @@ class MySQLExporter(object):
 				if (datetime.datetime.now(self.station_time_zone).replace(tzinfo=None) - last_rain).seconds < THREE_HOURS_IN_SECONDS:
 					# This is an ongoing rain event, so don't record the end yet.
 					last_rain = None
+					ongoing_rain_events = 1
+				else:
+					found_rain_events += 1
 
 				average_rate = (sum(event_rain_rates) / len(event_rain_rates)).quantize(TENTHS)
 
@@ -632,6 +640,7 @@ class MySQLExporter(object):
 				)
 				self._connection.commit()
 
+		return found_rain_events, ongoing_rain_events
 
 	def get_newest_timestamp(self):
 		with self._get_cursor('SELECT max(timestamp_weatherlink) FROM weather_archive_record;', []) as cursor:

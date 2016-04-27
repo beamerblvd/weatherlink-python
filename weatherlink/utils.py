@@ -246,9 +246,10 @@ def calculate_all_record_values(record, record_minute_span_default=30):
 	solar_radiation = record.get('solar_radiation')
 	solar_radiation_high = record.get('solar_radiation_high')
 
-	if wind_speed:
+	minutes_covered = (record.get('minutes_covered', record_minute_span_default) or record_minute_span_default)
+	if wind_speed and minutes_covered:
 		ws_mpm = wind_speed / 60
-		distance = ws_mpm * record.get('minutes_covered', record_minute_span_default)
+		distance = ws_mpm * minutes_covered
 		arguments['wind_run_distance_total'] = distance
 
 	if humidity_outside and barometric_pressure:
