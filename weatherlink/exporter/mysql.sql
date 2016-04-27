@@ -64,6 +64,8 @@ CREATE TABLE `weather_calculated_summary` (
     `summary_month` tinyint unsigned NOT NULL COMMENT 'Which month this summary belongs to, if any (0 = null, necessary for unique index)',
     `summary_week` tinyint unsigned NOT NULL COMMENT 'Which week this summary belongs to, if any (0 = null, necessary for unique index)',
     `summary_day` tinyint unsigned NOT NULL COMMENT 'Which day this summary belongs to, if any (0 = null, necessary for unique index)',
+    `week_start` date NULL COMMENT 'The start date of the week for only weekly summaries',
+    `week_end` date NULL COMMENT 'The end date of the week for onyl weekly summaries',
     -- averages, highs, lows, and totals of actual, physical measurements
     `temperature_outside_average` decimal(4,1) NULL COMMENT 'The average outdoor temperature during the summary period in ºF',
     `temperature_outside_low` decimal(4,1) NULL COMMENT 'The low outdoor temperature during the summary period in ºF',
@@ -81,6 +83,7 @@ CREATE TABLE `weather_calculated_summary` (
     `barometric_pressure_low` decimal(6,3) unsigned NULL COMMENT 'The low barometric pressure during the summary period in inches of Hg',
     `barometric_pressure_high` decimal(6,3) unsigned NULL COMMENT 'The high barometric pressure during the summary period in inches of Hg',
     `wind_speed_average` smallint unsigned NULL COMMENT 'The average wind speed during the summary period in miles per hour',
+    `wind_direction_prevailing` enum('N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW') NULL COMMENT 'The most common (statistical mode) wind direction during the summary period',
     `wind_speed_high` smallint unsigned NULL COMMENT 'The high (gust) wind speed during the summary period in miles per hour',
     `wind_speed_high_direction` enum('N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW') NULL COMMENT 'The high (gust) wind speed direction',
     `wind_speed_high_10_minute_average` smallint unsigned NULL COMMENT 'The high (average) wind speed during the summary period in miles per hour',

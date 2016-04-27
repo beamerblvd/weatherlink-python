@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+import collections
 import contextlib
 import decimal
 import datetime
@@ -177,11 +178,15 @@ class MySQLExporter(object):
 				raise
 
 	@contextlib.contextmanager
-	def _get_cursor(self, statement, arguments):
+	def _get_cursor(self, statement=None, arguments=None):
 		cursor = None
 		try:
 			cursor = self._connection.cursor()
-			cursor.execute(statement, arguments)
+			if statement:
+				if arguments:
+					cursor.execute(statement, arguments)
+				else:
+					cursor.execute(statement)
 			yield cursor
 		finally:
 			if cursor:
@@ -220,12 +225,6 @@ class MySQLExporter(object):
 		arguments[column_map['summary_month']] = record.date.month
 		arguments[column_map['summary_day']] = record.date.day
 
-		# week_year = d.isocalendar()[0]
-		# week_number = d.isocalendar()[1]
-		# week_day = d.weekday()
-		# week_start = (d - datetime.timedelta(days=week_day)).replace(hour=0, minute=0, second=0)
-		# week_end = (week_start + datetime.timedelta(days=6)).replace(hour=23, minute=59, second=59)
-
 	def _add_physical_values_to_arguments(self, record, arguments):
 		column_map = self.archive_table_column_map
 
@@ -240,23 +239,328 @@ class MySQLExporter(object):
 			if k in column_map:
 				arguments[column_map[k]] = v
 
-	def recalculate_summaries_for_date(self, date):
-		pass
+	def recalculate_summaries_for_dates(self, dates):
+		# We create a set of everything that needs recalculating so that we don't do any duplicate work
+		y = set()
+		ym = set()
+		ymd = set()
+		yw = set()
+		ywdd = []
+
+		for date in dates:
+			year, month, day = date.year, date.month, date.day
+			if (year, month, day, ) in ymd:
+				continue
+
+			#self._recalculate_daily_summary(year, month, day)
+
+			y.add(year)
+			ym.add((year, month, ))
+			ymd.add((year, month, day, ))
+
+			week_year, week_number, _ = d.isocalendar()
+			if (week_year, week_number, ) in yw:
+				continue
+
+			ywdd.append((week_year, week_number, date, ))
+
+		print y
+		print ym
+		print ymd
+		print ywdd
+		return
+
+		for args in ywdd:
+			self._recalculate_weekly_summary(*args)
+
+		for args in ym:
+			self._recalculate_monthly_summary(*args)
+
+		for year in y:
+			self._recalculate_yearly_summary(year)
+
+		self._recalculate_all_time_summary()
 
 	def _recalculate_daily_summary(self, year, month, day):
-		pass
+		with self._get_cursor() as cursor:
+			summary_id, average_temperature = self._recalculate_summary_from_arguments(
+				cursor,
+				'summary_year = %s AND summary_month = %s AND summary_day = %s',
+				[year, month, day],
+				'DAILY',
+				year,
+				month,
+				0,
+				day,
+			)
 
-	def _recalculate_weekly_summary(self, year, week):
-		pass
+			# Yes, we want integer division here
+			# This is the maximum number of whole records that can fit in a 10-minute span
+			# It's only valid if the archive record minute span is 10 minutes or less
+			wind_speed_high_10_minute_average = wind_speed_high_10_minute_average_direction = None
+			wind_records_to_include = 10 / self.record_minute_span
+			if wind_records_to_include > 0:
+				speed_queue = collections.deque(maxlen=wind_records_to_include)
+				direction_queue = collections.deque(maxlen=wind_records_to_include)
+				current_max = ZERO
+				current_direction_list = []
+
+				query = (
+					'SELECT wind_speed, wind_speed_direction FROM weather_archive_record '
+					'WHERE summary_year = %s AND summary_month = %s AND summary_day = %s '
+					'ORDER BY timestamp_station;'
+				)
+				cursor.execute(query, [year, month, day])
+				for (wind_speed, wind_speed_direction, ) in cursor:
+					speed_queue.add(wind_speed)
+					direction_queue.add(wind_speed_direction)
+
+					if len(speed_queue) == wind_records_to_include:
+						# This is the rolling average of the last 10 minutes
+						average = sum(speed_queue) / wind_records_to_include
+						if average > current_max:
+							current_max = average
+							current_direction_list = list(direction_queue)
+
+				if current_max > ZERO:
+					wind_speed_high_10_minute_average = current_max
+					if current_direction_list:
+						count = collections.Counter(current_direction_list)
+						wind_speed_high_10_minute_average_direction = count.most_common()[0][0]
+
+			# Calculate degree days
+			hdd = weatherlink.utils.calculate_heating_degree_days(average_temperature)
+			cdd = weatherlink.utils.calculate_cooling_degree_days(average_temperature)
+
+			# Update the summary with these daily-only expensive calculations
+			cursor.execute(
+				'UPDATE weather_calculated_summary SET '
+				'integrated_heating_degree_days = %s, integrated_cooling_degree_days = %s, '
+				'wind_speed_high_10_minute_average = %s, wind_speed_high_10_minute_average_direction = %s '
+				'WHERE summary_id = %s;',
+				[hdd, cdd, wind_speed_high_10_minute_average, wind_speed_high_10_minute_average_direction, summary_id]
+			)
+
+			self._connection.commit()
+
+	def _recalculate_weekly_summary(self, week_year, week_number, date):
+		week_day = date.weekday()
+		week_start = (date - datetime.timedelta(days=week_day)).replace(hour=0, minute=0, second=0)
+		week_end = (week_start + datetime.timedelta(days=6)).replace(hour=23, minute=59, second=59)
+
+		with self._get_cursor() as cursor:
+			summary_id, _ = self._recalculate_summary_from_arguments(
+				cursor,
+				'timestamp_station >= %s AND timestamp_station <= %s',
+				[week_start, week_end],
+				'WEEKLY',
+				week_year,
+				0,
+				week_number,
+				0,
+				week_start.date(),
+				week_end.date(),
+			)
+
+			if week_start.year != week_end.year:
+				where_clause = (
+					"summary_type = 'DAILY' AND ( "
+						'(summary_year = %s AND summary_month = %s AND summary_day >= %s) OR '
+						'(summary_year = %s AND summary_month = %s AND summary_day <= %s)'
+					' )'
+				)
+				where_arguments = [
+					week_start.year, week_start.month, week_start.day, week_end.year, week_end.month, week_end.day
+				]
+			elif week_start.month != week_end.month:
+				where_clause = (
+					"summary_type = 'DAILY' AND summary_year = %s AND ( "
+						'(summary_month = %s AND summary_day >= %s) OR (summary_month = %s AND summary_day <= %s)'
+					' )'
+				)
+				where_arguments = [week_start.year, week_start.month, week_start.day, week_end.month, week_end.day]
+			else:
+				where_clause = (
+					"summary_type = 'DAILY' AND summary_year = %s AND summary_month = %s AND "
+					'summary_day >= %s AND summary_day <= %s'
+				)
+				where_arguments = [week_start.year, week_start.month, week_start.day, week_end.day]
+
+			self._aggregate_degree_days_and_wind_averages(cursor, summary_id, where_clause, where_arguments)
 
 	def _recalculate_monthly_summary(self, year, month):
-		pass
+		with self._get_cursor() as cursor:
+			summary_id, _ = self._recalculate_summary_from_arguments(
+				cursor,
+				'summary_year = %s AND summary_month = %s',
+				[year, month],
+				'MONTHLY',
+				year,
+				month,
+				0,
+				0,
+			)
+
+			self._aggregate_degree_days_and_wind_averages(
+				cursor,
+				summary_id,
+				"summary_type = 'DAILY' AND summary_year = %s AND summary_month = %s",
+				[year, month],
+			)
 
 	def _recalculate_yearly_summary(self, year):
-		pass
+		with self._get_cursor() as cursor:
+			summary_id, _ = self._recalculate_summary_from_arguments(
+				cursor,
+				'summary_year = %s',
+				[year],
+				'YEARLY',
+				year,
+				0,
+				0,
+				0,
+			)
+
+			self._aggregate_degree_days_and_wind_averages(
+				cursor,
+				summary_id,
+				"summary_type = 'MONTHLY' AND summary_year = %s",
+				[year],
+			)
 
 	def _recalculate_all_time_summary(self):
 		pass
+
+	def _recalculate_summary_from_arguments(
+		self, cursor, where_clause, where_arguments, summary_type, year, month, week, day,
+		week_start=None, week_end=None,
+	):
+		# Get most statistics in simple, optimized query
+		query = (
+			'SELECT min(temperature_outside_low), max(temperature_outside_high), avg(temperature_outside), '
+			'min(temperature_inside), max(temperature_inside), avg(temperature_inside), '
+			'min(humidity_outside), max(humidity_outside), avg(humidity_outside), '
+			'min(humidity_inside), max(humidity_inside), avg(humidity_inside), '
+			'min(barometric_pressure), max(barometric_pressure), avg(barometric_pressure), '
+			'max(wind_speed_high), avg(wind_speed), sum(wind_run_distance_total), '
+			'sum(rain_total), max(rain_rate_high), '
+			'min(solar_radiation), max(solar_radiation_high), avg(solar_radiation), '
+			'min(uv_index), max(uv_index_high), avg(uv_index), '
+			'sum(evapotranspiration), '
+			'min(temperature_wet_bulb_low), max(temperature_wet_bulb_high), avg(temperature_wet_bulb), '
+			'min(dew_point_outside_low), max(dew_point_outside_high), avg(dew_point_outside), '
+			'min(dew_point_inside), max(dew_point_inside), avg(dew_point_inside), '
+			'min(heat_index_outside_low), max(heat_index_outside_high), avg(heat_index_outside), '
+			'min(heat_index_inside), max(heat_index_inside), avg(heat_index_inside), '
+			'min(wind_chill_low), max(wind_chill_high), avg(wind_chill), '
+			'min(thw_index_low), max(thw_index_high), avg(thw_index), '
+			'min(thsw_index_low), max(thsw_index_high), avg(thsw_index) '
+			'FROM weather_archive_record WHERE ' + where_clause + ';'
+		)
+		cursor.execute(query, where_arguments)
+		summary_values = cursor.fetchone()
+
+		average_temperature = summary_values[2]
+		wind_speed_high = summary_values[15]
+
+		wind_direction_prevailing = wind_speed_high_direction = None
+		if wind_speed_high:
+			# Get statistical mode wind speed direction in more complex, expensive query
+			query = (
+				'SELECT wind_speed_direction FROM weather_archive_record WHERE ' + where_clause +
+				' AND wind_speed_direction IS NOT NULL GROUP BY wind_speed_direction ORDER BY count(1) DESC LIMIT 1;'
+			)
+			cursor.execute(query, where_arguments)
+			result = cursor.fetchone()
+			if result:
+				wind_direction_prevailing = result[0]
+
+			# Get statistical mode wind speed direction restricted to the speed record for the summary period
+			query = (
+				'SELECT wind_speed_high_direction FROM weather_archive_record WHERE ' + where_clause +
+				' AND wind_speed_high = %s AND wind_speed_high_direction IS NOT NULL '
+				'GROUP BY wind_speed_high_direction ORDER BY count(1) DESC LIMIT 1;'
+			)
+			cursor.execute(query, where_arguments + [wind_speed_high])
+			result = cursor.fetchone()
+			if result:
+				wind_speed_high_direction = result[0]
+
+		# Find the existing summary, if there is one
+		query = (
+			'SELECT summary_id FROM weather_calculated_summary WHERE summary_type = %s AND summary_year = %s '
+			'AND summary_month = %s AND summary_week = %s AND summary_day = %s;'
+		)
+		cursor.execute(query, [summary_type, year, month, week, day])
+		summary = cursor.fetchone()
+
+		if summary:
+			summary_id = summary[0]
+		else:
+			# Insert an empty summary to reduce complexity
+			query = (
+				'INSERT INTO weather_calculated_summary '
+				'(summary_type, summary_year, summary_month, summary_week, summary_day, week_start, week_end) '
+				'VALUES (%s, %s, %s, %s, %s, %s, %s);'
+			)
+			cursor.execute(query, [summary_type, year, month, week, day, week_start, week_end])
+			summary_id = cursor.lastrowid
+
+		# Update the summary with our findings
+		query = (
+			'UPDATE weather_calculated_summary SET '
+			'temperature_outside_low = %s, temperature_outside_high = %s, temperature_outside_average = %s, '
+			'temperature_inside_low = %s, temperature_inside_high = %s, temperature_inside_average = %s, '
+			'humidity_outside_low = %s, humidity_outside_high = %s, humidity_outside_average = %s, '
+			'humidity_inside_low = %s, humidity_inside_high = %s, humidity_inside_average = %s, '
+			'barometric_pressure_low = %s, barometric_pressure_high = %s, barometric_pressure_average = %s, '
+			'wind_speed_high = %s, wind_speed_average = %s, wind_run_distance_total = %s, '
+			'rain_total = %s, rain_rate_high = %s, '
+			'solar_radiation_low = %s, solar_radiation_high = %s, solar_radiation_average = %s, '
+			'uv_index_low = %s, uv_index_high = %s, uv_index_average = %s, '
+			'evapotranspiration = %s, '
+			'temperature_wet_bulb_low = %s, temperature_wet_bulb_high = %s, temperature_wet_bulb_average = %s, '
+			'dew_point_outside_low = %s, dew_point_outside_high = %s, dew_point_outside_average = %s, '
+			'dew_point_inside_low = %s, dew_point_inside_high = %s, dew_point_inside_average = %s, '
+			'heat_index_outside_low = %s, heat_index_outside_high = %s, heat_index_outside_average = %s, '
+			'heat_index_inside_low = %s, heat_index_inside_high = %s, heat_index_inside_average = %s, '
+			'wind_chill_low = %s, wind_chill_high = %s, wind_chill_average = %s, '
+			'thw_index_low = %s, thw_index_high = %s, thw_index_average = %s, '
+			'thsw_index_low = %s, thsw_index_high = %s, thsw_index_average = %s, '
+			'wind_direction_prevailing = %s, wind_speed_high_direction = %s '
+			'WHERE summary_id = %s;'
+		)
+		cursor.execute(query, list(summary_values) + [wind_direction_prevailing, wind_speed_high_direction, summary_id])
+
+		return summary_id, average_temperature
+
+	def _aggregate_degree_days_and_wind_averages(self, cursor, summary_id, where_clause, where_arguments):
+		query = (
+			'SELECT sum(integrated_heating_degree_days), sum(integrated_cooling_degree_days) '
+			'FROM weather_calculated_summary WHERE ' + where_clause + ';'
+		)
+		cursor.execute(query, where_arguments)
+		hdd, cdd = cursor.fetchone()
+
+		query = (
+			'SELECT wind_speed_high_10_minute_average, wind_speed_high_10_minute_average_direction '
+			'FROM weather_calculated_summary WHERE ' + where_clause +
+			' AND wind_speed_high_10_minute_average IS NOT NULL '
+			'ORDER BY wind_speed_high_10_minute_average DESC LIMIT 1;'
+		)
+		cursor.execute(query, where_arguments)
+		wind_values = cursor.fetchone()
+		wind_speed_high_10_minute_average = wind_speed_high_10_minute_average_direction = None
+		if wind_values:
+			wind_speed_high_10_minute_average, wind_speed_high_10_minute_average_direction = wind_values
+
+		cursor.execute(
+			'UPDATE weather_calculated_summary SET '
+			'integrated_heating_degree_days = %s, integrated_cooling_degree_days = %s, '
+			'wind_speed_high_10_minute_average = %s, wind_speed_high_10_minute_average_direction = %s '
+			'WHERE summary_id = %s;',
+			[hdd, cdd, wind_speed_high_10_minute_average, wind_speed_high_10_minute_average_direction, summary_id]
+		)
 
 	def find_new_rain_events(self):
 		while True:
