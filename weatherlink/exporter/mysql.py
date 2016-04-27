@@ -150,24 +150,19 @@ class MySQLExporter(object):
 			database=self.database,
 			user=self.username,
 			password=self.password,
-			use_pure=False,
 		)
 
 	def disconnect(self):
-		if self.connection:
+		if self._connection:
 			try:
 				self._connection.close()
 			finally:
 				self._connection = None
 
 	def __enter__(self):
-		super(MySQLExporter, self).__enter__()
-
 		self.connect()
 
 	def __exit__(self, exception_type, exception_value, exception_traceback):
-		super(MySQLExporter, self).__exit__(exception_type, exception_value, exception_traceback)
-
 		try:
 			self.disconnect()
 		except:
@@ -208,7 +203,7 @@ class MySQLExporter(object):
 		)
 
 		with self._get_cursor(statement, arguments) as cursor:
-			cursor.commit()
+			self._connection.commit()
 
 	def _add_timestamp_values_to_arguments(self, record, arguments):
 		column_map = self.archive_table_column_map

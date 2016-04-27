@@ -12,6 +12,10 @@ install_requirements = [
 	'mysql-connector-python>=2.0.4',
 ]
 
+dependency_links = [
+	'https://cdn.mysql.com/Downloads/Connector-Python/mysql-connector-python-2.0.4.zip#egg=mysql-connector-python-2.0.4',
+]
+
 test_requirements = [
 
 ]
@@ -38,5 +42,6 @@ setup(
 	url='https://github.com/beamerblvd/weatherlink-python',
 	packages=packages,
 	install_requires=install_requirements,
+	dependency_links=dependency_links,
 	tests_require=test_requirements,
 )
