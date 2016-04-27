@@ -39,7 +39,6 @@ class Downloader(object):
 			password=self.password,
 			action=self.ACTION_HEADERS,
 		)
-		print 'Calling URL %s' % url
 
 		response = _requests_session.get(url)
 		assert response.headers['Content-Type'] == 'text/html', '%s' % response.headers['Content-Type']
@@ -52,7 +51,6 @@ class Downloader(object):
 			password=self.password,
 			action=self.ACTION_DOWNLOAD,
 		)
-		print 'Calling URL %s' % url
 
 		response = _requests_session.get(url, stream=True)
 		assert response.headers['Content-Type'] == 'application/octet-stream', '%s' % response.headers['Content-Type']

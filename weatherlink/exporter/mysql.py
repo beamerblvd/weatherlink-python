@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
 import contextlib
+import decimal
 
 import mysql.connector
 import pytz
@@ -14,6 +15,10 @@ can be used to calculate daily, weekly, monthly, yearly, and all-time summaries,
 """
 
 COLUMN_MAP_DO_NOT_INSERT = '__do_not_insert_this_value__'
+
+THREE_HOURS_IN_SECONDS = 10800
+ZERO = decimal.Decimal('0.0')
+TENTHS = decimal.Decimal('0.01')
 
 
 class MySQLExporter(object):
@@ -214,6 +219,12 @@ class MySQLExporter(object):
 		arguments[column_map['summary_month']] = record.date.month
 		arguments[column_map['summary_day']] = record.date.day
 
+		# week_year = d.isocalendar()[0]
+		# week_number = d.isocalendar()[1]
+		# week_day = d.weekday()
+		# week_start = (d - datetime.timedelta(days=week_day)).replace(hour=0, minute=0, second=0)
+		# week_end = (week_start + datetime.timedelta(days=6)).replace(hour=23, minute=59, second=59)
+
 	def _add_physical_values_to_arguments(self, record, arguments):
 		column_map = self.archive_table_column_map
 
@@ -243,6 +254,66 @@ class MySQLExporter(object):
 	def _recalculate_all_time_summary(self):
 		pass
 
+	def find_new_rain_events(self):
+		while True:
+			with self._get_cursor('SELECT max(timestamp_end) FROM weather_rain_event;', []) as cursor:
+				latest = cursor.fetchone()[0]
+
+				if latest:
+					query = (
+						'SELECT timestamp_station, rain_total, rain_rate_high FROM weather_archive_record '
+						'WHERE timestamp_station > %s AND rain_total > 0 ORDER BY timestamp_station LIMIT 1;'
+					)
+					cursor.execute(query, [latest])
+				else:
+					query = (
+						'SELECT timestamp_station, rain_total, rain_rate_high FROM weather_archive_record '
+						'WHERE timestamp_station IS NOT NULL AND rain_total > 0 ORDER BY timestamp_station LIMIT 1;'
+					)
+					cursor.execute(query, [])
+
+				# This is the start of a new rain event; if None, we have collected all the rain events
+				start_record = cursor.fetchone()
+				if not start_record:
+					break
+
+				print '.'
+
+				last_rain = start_record[0]
+				event_total_rain = ZERO
+				event_rain_rates = []
+				event_max_rain_rate = ZERO
+				event_max_rate_time = None
+				cursor.execute(
+					'SELECT timestamp_station, rain_total, rain_rate_high FROM weather_archive_record '
+					'WHERE timestamp_station > %s ORDER BY timestamp_station;',
+					[start_record[0]],
+				)
+				for (timestamp_station, rain_total, rain_rate_high) in cursor:
+					if (timestamp_station - last_rain).seconds > THREE_HOURS_IN_SECONDS:
+						break
+
+					if rain_total == 0:
+						continue
+
+					last_rain = timestamp_station
+					event_total_rain += rain_total
+					event_rain_rates.append(rain_rate_high)
+					old = event_max_rain_rate
+					event_max_rain_rate = max(event_max_rain_rate, rain_rate_high)
+					if old != event_max_rain_rate:
+						event_max_rate_time = timestamp_station
+
+				average_rate = (sum(event_rain_rates) / len(event_rain_rates)).quantize(TENTHS)
+
+				cursor.execute(
+					'INSERT INTO weather_rain_event (timestamp_start, timestamp_end, timestamp_rain_rate_high, '
+					'rain_total, rain_rate_average, rain_rate_high) VALUES (%s, %s, %s, %s, %s, %s);',
+					[start_record[0], last_rain, event_max_rate_time, event_total_rain, average_rate, event_max_rain_rate],
+				)
+				self._connection.commit()
+
+
 	def get_newest_timestamp(self):
-		with self._get_cursor('SELECT max(`timestamp_weatherlink`) FROM weather_archive_record;', []) as cursor:
+		with self._get_cursor('SELECT max(timestamp_weatherlink) FROM weather_archive_record;', []) as cursor:
 			return cursor.fetchone()[0]

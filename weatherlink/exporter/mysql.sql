@@ -4,9 +4,9 @@ CREATE TABLE `weather_archive_record` (
     `timestamp_weatherlink` bigint unsigned NOT NULL COMMENT 'The convoluted WeatherLink timestamp (see Python code for details)',
     `timestamp_station` datetime NOT NULL COMMENT 'The station-local date and time of the end of the archive record period (you must know station time zone for this to be useful)',
     `timestamp_utc` datetime NOT NULL COMMENT 'The UTC date and time of the end of the archive record period',
-    `summary_year` year(4) NULL COMMENT 'Which summary year this record belongs to, if any',
-    `summary_month` tinyint unsigned NULL COMMENT 'Which summary month this record belongs to, if any',
-    `summary_day` tinyint unsigned NULL COMMENT 'Which summary day this record belongs to, if any',
+    `summary_year` year(4) NOT NULL COMMENT 'Which summary year this record belongs to, if any',
+    `summary_month` tinyint unsigned NOT NULL COMMENT 'Which summary month this record belongs to, if any',
+    `summary_day` tinyint unsigned NOT NULL COMMENT 'Which summary day this record belongs to, if any',
     -- averages and end-of-period values of actual, physical measurements
     `temperature_outside` decimal(4,1) NULL COMMENT 'The current outdoor temperature at the end of the archine period in ºF',
     `temperature_outside_low` decimal(4,1) NULL COMMENT 'The low outdoor temperature during the archive period in ºF',
@@ -62,6 +62,7 @@ CREATE TABLE `weather_calculated_summary` (
     `summary_type` enum('DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY', 'ALL_TIME') NOT NULL COMMENT 'The summary type',
     `summary_year` year(4) NULL COMMENT 'Which year this summary belongs to, if any',
     `summary_month` tinyint unsigned NULL COMMENT 'Which month this summary belongs to, if any',
+    `summary_week` tinyint unsigned NULL COMMENT 'Which week this summary belongs to, if any',
     `summary_day` tinyint unsigned NULL COMMENT 'Which day this summary belongs to, if any',
     -- averages, highs, lows, and totals of actual, physical measurements
     `temperature_outside_average` decimal(4,1) NULL COMMENT 'The average outdoor temperature during the summary period in ºF',
