@@ -30,8 +30,8 @@ class Downloader(object):
 		self.max_account_records = None
 		self.records = None
 
-	def download(self, from_datetime):
-		timestamp=convert_datetime_to_timestamp(from_datetime)
+	def download(self, from_timestamp):
+		timestamp = convert_datetime_to_timestamp(from_timestamp)
 
 		url = self.WEATHER_LINK_URL.format(
 			timestamp=timestamp,

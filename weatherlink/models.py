@@ -71,7 +71,9 @@ THOUSANDTHS = lambda x: x * _THOUSANDTHS
 
 
 def convert_datetime_to_timestamp(d):
-	return ((d.day + (d.month * 32) + ((d.year - 2000) * 512)) << 16) + (d.minute + (d.hour * 100))
+	if isinstance(d, datetime.datetime):
+		return ((d.day + (d.month * 32) + ((d.year - 2000) * 512)) << 16) + (d.minute + (d.hour * 100))
+	return d
 
 
 def convert_timestamp_to_datetime(timestamp):
