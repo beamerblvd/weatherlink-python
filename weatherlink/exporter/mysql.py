@@ -2,6 +2,7 @@ from __future__ import absolute_import
 
 import contextlib
 import decimal
+import datetime
 
 import mysql.connector
 import pytz
@@ -272,13 +273,12 @@ class MySQLExporter(object):
 					)
 					cursor.execute(query, [])
 
-				# This is the start of a new rain event; if None, we have collected all the rain events
 				start_record = cursor.fetchone()
 				if not start_record:
+					# There are no more rain events. We're done.
 					break
 
-				print '.'
-
+				# This is the start of a new rain event
 				last_rain = start_record[0]
 				event_total_rain = start_record[1]
 				event_rain_rates = [start_record[2]]
@@ -305,6 +305,10 @@ class MySQLExporter(object):
 						event_max_rate_time = timestamp_station
 
 				cursor.fetchall()  # Fetch remaining rows to prevent an error
+
+				if (datetime.datetime.now(self.station_time_zone) - last_rain) < THREE_HOURS_IN_SECONDS:
+					# This is an ongoing rain event, so don't record it yet. We're done.
+					break
 
 				average_rate = (sum(event_rain_rates) / len(event_rain_rates)).quantize(TENTHS)
 
