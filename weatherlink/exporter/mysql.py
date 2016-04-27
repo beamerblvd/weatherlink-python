@@ -280,10 +280,10 @@ class MySQLExporter(object):
 				print '.'
 
 				last_rain = start_record[0]
-				event_total_rain = ZERO
-				event_rain_rates = []
-				event_max_rain_rate = ZERO
-				event_max_rate_time = None
+				event_total_rain = start_record[1]
+				event_rain_rates = [start_record[2]]
+				event_max_rain_rate = event_rain_rates[0]
+				event_max_rate_time = last_rain
 				cursor.execute(
 					'SELECT timestamp_station, rain_total, rain_rate_high FROM weather_archive_record '
 					'WHERE timestamp_station > %s ORDER BY timestamp_station;',
@@ -303,6 +303,8 @@ class MySQLExporter(object):
 					event_max_rain_rate = max(event_max_rain_rate, rain_rate_high)
 					if old != event_max_rain_rate:
 						event_max_rate_time = timestamp_station
+
+				cursor.fetchall()  # Fetch remaining rows to prevent an error
 
 				average_rate = (sum(event_rain_rates) / len(event_rain_rates)).quantize(TENTHS)
 
