@@ -278,7 +278,7 @@ class MySQLExporter(object):
 					# There are no more rain events. We're done.
 					break
 
-				# This is the start of a new rain event
+				# This is the start of a new rain event.
 				last_rain = start_record[0]
 				event_total_rain = start_record[1]
 				event_rain_rates = [start_record[2]]
@@ -304,18 +304,24 @@ class MySQLExporter(object):
 					if old != event_max_rain_rate:
 						event_max_rate_time = timestamp_station
 
-				cursor.fetchall()  # Fetch remaining rows to prevent an error
+				cursor.fetchall()  # Fetch remaining rows to prevent an error.
 
 				if (datetime.datetime.now(self.station_time_zone) - last_rain) < THREE_HOURS_IN_SECONDS:
-					# This is an ongoing rain event, so don't record it yet. We're done.
-					break
+					# This is an ongoing rain event, so don't record the end yet.
+					last_rain = None
 
 				average_rate = (sum(event_rain_rates) / len(event_rain_rates)).quantize(TENTHS)
 
 				cursor.execute(
 					'INSERT INTO weather_rain_event (timestamp_start, timestamp_end, timestamp_rain_rate_high, '
-					'rain_total, rain_rate_average, rain_rate_high) VALUES (%s, %s, %s, %s, %s, %s);',
-					[start_record[0], last_rain, event_max_rate_time, event_total_rain, average_rate, event_max_rain_rate],
+					'rain_total, rain_rate_average, rain_rate_high) VALUES (%s, %s, %s, %s, %s, %s) '
+					'ON DUPLICATE KEY UPDATE timestamp_end = %s, timestamp_rain_rate_high = %s, rain_total = %s, '
+					'rain_rate_average = %s, rain_rate_high = %s;',
+					[
+						start_record[0], last_rain, event_max_rate_time, event_total_rain, average_rate,
+						event_max_rain_rate, last_rain, event_max_rate_time, event_total_rain, average_rate,
+						event_max_rain_rate,
+					],
 				)
 				self._connection.commit()
 

@@ -53,7 +53,7 @@ CREATE TABLE `weather_archive_record` (
     PRIMARY KEY (`record_id`),
     UNIQUE INDEX `g$exporter` (`timestamp_weatherlink`),
     INDEX `g$summary_analyzer` (`summary_year`, `summary_month`, `summary_day`),
-    INDEX `g$rain_event_analyzer` (`timestamp_station`, `rain_total`)
+    INDEX `g$rain_event_analyzer` (`timestamp_station`, `rain_total`, `rain_rate_high`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci COMMENT='Stores archived raw measurements and calculations for small periods of time';
 
 CREATE TABLE `weather_calculated_summary` (
@@ -129,11 +129,12 @@ CREATE TABLE `weather_calculated_summary` (
 CREATE TABLE `weather_rain_event` (
     `event_id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
     `timestamp_start` datetime NOT NULL COMMENT 'The station-local date and time that the rain event started',
-    `timestamp_end` datetime NOT NULL COMMENT 'The station-local date and time that the rain event ended',
+    `timestamp_end` datetime NULL COMMENT 'The station-local date and time that the rain event ended',
     `timestamp_rain_rate_high` datetime NOT NULL COMMENT 'The station-local date and time that the highest rain rate was recorded for this event',
     `rain_total` decimal(7,3) unsigned NOT NULL COMMENT 'The total amount of rain that fell during this rain event',
     `rain_rate_average` decimal(5,2) unsigned NULL COMMENT 'The average rain rate during this rain event',
     `rain_rate_high` decimal(5,2) unsigned NULL COMMENT 'The highest recorderd rain rate during this rain event',
     PRIMARY KEY (`event_id`),
-    INDEX `g$display` (`timestamp_start`)
+    UNIQUE INDEX `g$display` (`timestamp_start`),
+    INDEX `g$latest` (`timestamp_end`),
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci COMMENT='Stores calculated rain event details';
