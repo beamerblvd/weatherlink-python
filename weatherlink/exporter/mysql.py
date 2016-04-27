@@ -242,3 +242,7 @@ class MySQLExporter(object):
 
 	def _recalculate_all_time_summary(self):
 		pass
+
+	def get_newest_timestamp(self):
+		with self._get_cursor('SELECT max(`timestamp_weatherlink`) FROM weather_archive_record;', []) as cursor:
+			return cursor.fetchone()[0]
