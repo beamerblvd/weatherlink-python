@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 import dateutil.parser
 import os
 import sys
@@ -5,6 +7,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 from weatherlink.downloader import Downloader
+from weatherlink.utils import calculate_all_record_values
 
 
 # This sample header data can be used to test _process_headers directly
@@ -35,4 +38,6 @@ for record in downloader.records:
 		if item[0] != '__special' and item[0][-8:] != '_version':
 			output += str(record[item[0]] or '-') + '  '
 	output += str(record.rain_amount) + '  ' + str(record.rain_rate) + '  '
+	values = calculate_all_record_values(record)
+	output += '(plus %s calculated values)' % len(values)
 	print output

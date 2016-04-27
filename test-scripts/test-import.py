@@ -1,9 +1,12 @@
+from __future__ import absolute_import
+
 import os
 import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 from weatherlink.importer import Importer
+from weatherlink.utils import calculate_all_record_values
 
 
 importer = Importer(sys.argv[1])
@@ -36,6 +39,8 @@ for day, day_index in enumerate(importer.header.day_indexes):
 				if item[0] != '__special' and item[0][-8:] != '_version':
 					output += str(record[item[0]] or '-') + '  '
 			output += str(record.rain_amount) + '  ' + str(record.rain_rate) + '  '
+			values = calculate_all_record_values(record)
+			output += '(plus %s calculated values)' % len(values)
 			print output
 
 		print

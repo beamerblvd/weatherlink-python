@@ -1,6 +1,249 @@
+from __future__ import absolute_import
+
+import contextlib
+
+import mysql.connector
+import pytz
+
+import weatherlink.utils
 
 """
 This module includes an exporter that can take WeatherLink records imported or downloaded and export them to a MySQL
 database. Though the schema used can be customized, the schema in mysql.sql is recommended. Additionally, this exporter
 can be used to calculate daily, weekly, monthly, yearly, and all-time summaries, and to analyze rain events.
 """
+
+COLUMN_MAP_DO_NOT_INSERT = '__do_not_insert_this_value__'
+
+
+class MySQLExporter(object):
+	DEFAULT_ARCHIVE_TABLE_NAME = 'weather_archive_record'
+	DEFAULT_ARCHIVE_TABLE_COLUMN_MAP = {
+		'timestamp': 'timestamp_weatherlink',
+	    'date': 'timestamp_station',
+	    'timestamp_utc': 'timestamp_utc',
+	    'summary_year': 'summary_year',
+	    'summary_month': 'summary_month',
+	    'summary_day': 'summary_day',
+	    # averages and end-of-period values of actual, physical measurements
+	    'temperature_outside': 'temperature_outside',
+	    'temperature_outside_low': 'temperature_outside_low',
+	    'temperature_outside_high': 'temperature_outside_high',
+	    'temperature_inside': 'temperature_inside',
+	    'humidity_outside': 'humidity_outside',
+	    'humidity_inside': 'humidity_inside',
+	    'barometric_pressure': 'barometric_pressure',
+	    'wind_speed': 'wind_speed',
+	    'wind_direction_prevailing': 'wind_speed_direction',
+	    'wind_speed_high': 'wind_speed_high',
+	    'wind_direction_speed_high': 'wind_speed_high_direction',
+	    'wind_run_distance_total': 'wind_run_distance_total',
+	    'rain_amount': 'rain_total',
+	    'rain_rate': 'rain_rate_high',
+	    'rain_amount_clicks': 'rain_clicks',
+	    'rain_rate_clicks': 'rain_click_rate_high',
+	    'solar_radiation': 'solar_radiation',
+	    'solar_radiation_high': 'solar_radiation_high',
+	    'uv_index': 'uv_index',
+	    'uv_index_high': 'uv_index_high',
+	    'evapotranspiration': 'evapotranspiration',
+	    # calculated values derived from two or more physical measurements
+	    'temperature_wet_bulb': 'temperature_wet_bulb',
+	    'temperature_wet_bulb_low': 'temperature_wet_bulb_low',
+	    'temperature_wet_bulb_high': 'temperature_wet_bulb_high',
+	    'dew_point_outside': 'dew_point_outside',
+	    'dew_point_outside_low': 'dew_point_outside_low',
+	    'dew_point_outside_high': 'dew_point_outside_high',
+	    'dew_point_inside': 'dew_point_inside',
+	    'heat_index_outside': 'heat_index_outside',
+	    'heat_index_outside_low': 'heat_index_outside_low',
+	    'heat_index_outside_high': 'heat_index_outside_high',
+	    'heat_index_inside': 'heat_index_inside',
+	    'wind_chill': 'wind_chill',
+	    'wind_chill_low': 'wind_chill_low',
+	    'wind_chill_high': 'wind_chill_high',
+	    'thw_index': 'thw_index',
+	    'thw_index_low': 'thw_index_low',
+	    'thw_index_high': 'thw_index_high',
+	    'thsw_index': 'thsw_index',
+	    'thsw_index_low': 'thsw_index_low',
+	    'thsw_index_high': 'thsw_index_high',
+	}
+
+	ARCHIVE_ATTRIBUTES_TO_COPY = frozenset({
+		'timestamp',
+		'date',
+		'temperature_outside',
+	    'temperature_outside_low',
+	    'temperature_outside_high',
+	    'temperature_inside',
+	    'humidity_outside',
+	    'humidity_inside',
+	    'barometric_pressure',
+	    'wind_speed',
+	    'wind_direction_prevailing',
+	    'wind_speed_high',
+	    'wind_direction_speed_high',
+	    'rain_amount',
+	    'rain_rate',
+	    'rain_amount_clicks',
+	    'rain_rate_clicks',
+	    'solar_radiation',
+	    'solar_radiation_high',
+	    'uv_index',
+	    'uv_index_high',
+	    'evapotranspiration',
+	})
+
+	DEFAULT_TIME_ZONE = pytz.timezone('America/Chicago')
+
+	def __init__(self, username, password, database, host='127.0.0.1', port=3306):
+		self.username = username
+		self.password = password
+		self.database = database
+		self.host = host
+		self.port = port
+
+		self._archive_table_name = self.DEFAULT_ARCHIVE_TABLE_NAME
+		self._archive_table_column_map = self.DEFAULT_ARCHIVE_TABLE_COLUMN_MAP
+		self._station_time_zone = self.DEFAULT_TIME_ZONE
+		self._record_minute_span = 30
+
+		self._connection = None
+
+	@property
+	def archive_table_name(self):
+		return self._archive_table_name or self.DEFAULT_ARCHIVE_TABLE_NAME
+
+	@archive_table_name.setter
+	def archive_table_name(self, value):
+		self._archive_table_name = value
+
+	@property
+	def archive_table_column_map(self):
+		return self._archive_table_column_map or self.DEFAULT_ARCHIVE_TABLE_COLUMN_MAP
+
+	@archive_table_column_map.setter
+	def archive_table_column_map(self, value):
+		self._archive_table_column_map = value
+
+	@property
+	def station_time_zone(self):
+		return self._station_time_zone or self.DEFAULT_TIME_ZONE
+
+	@station_time_zone.setter
+	def station_time_zone(self, value):
+		self._station_time_zone = pytz.timezone(value) if isinstance(value, basestring) else value
+
+	@property
+	def record_minute_span(self):
+		return self._record_minute_span or 30
+
+	@record_minute_span.setter
+	def record_minute_span(self, value):
+		self._record_minute_span = value
+
+	def connect(self):
+		self._connection = mysql.connector.connect(
+			host=self.host,
+			port=self.port,
+			database=self.database,
+			user=self.username,
+			password=self.password,
+			use_pure=False,
+		)
+
+	def disconnect(self):
+		if self.connection:
+			try:
+				self._connection.close()
+			finally:
+				self._connection = None
+
+	def __enter__(self):
+		super(MySQLExporter, self).__enter__()
+
+		self.connect()
+
+	def __exit__(self, exception_type, exception_value, exception_traceback):
+		super(MySQLExporter, self).__exit__(exception_type, exception_value, exception_traceback)
+
+		try:
+			self.disconnect()
+		except:
+			# Only allow this exception to be raised if an exception did not triger the context manager exit
+			if not exception_type:
+				raise
+
+	@contextlib.contextmanager
+	def _get_cursor(self, statement, arguments):
+		cursor = None
+		try:
+			cursor = self._connection.cursor()
+			cursor.execute(statement, arguments)
+			yield cursor
+		finally:
+			if cursor:
+				try:
+					cursor.close()
+				except:
+					pass
+
+	def export_record(self, record):
+		argument_map = {}
+		self._add_timestamp_values_to_arguments(record, argument_map)
+		self._add_physical_values_to_arguments(record, argument_map)
+		self._add_calculated_values_to_arguments(record, argument_map)
+
+		column_list = []
+		arguments = []
+		for k, v in argument_map.iteritems():
+			if k != COLUMN_MAP_DO_NOT_INSERT:
+				column_list.append(k)
+				arguments.append(v)
+
+		statement = (
+			'INSERT INTO ' + self.archive_table_name + ' (' + ', '.join(column_list) + ') ' +
+			'VALUES (' + ', '.join(['%s'] * len(column_list)) + ');'
+		)
+
+		with self._get_cursor(statement, arguments) as cursor:
+			cursor.commit()
+
+	def _add_timestamp_values_to_arguments(self, record, arguments):
+		column_map = self.archive_table_column_map
+
+		d = record.date.replace(tzinfo=self.station_time_zone).astimezone(pytz.UTC).replace(tzinfo=None)
+		arguments[column_map['timestamp_utc']] = d
+		arguments[column_map['summary_year']] = record.date.year
+		arguments[column_map['summary_month']] = record.date.month
+		arguments[column_map['summary_day']] = record.date.day
+
+	def _add_physical_values_to_arguments(self, record, arguments):
+		column_map = self.archive_table_column_map
+
+		for attribute in self.ARCHIVE_ATTRIBUTES_TO_COPY:
+			if attribute in record:
+				arguments[column_map[attribute]] = record[attribute]
+
+	def _add_calculated_values_to_arguments(self, record, arguments):
+		column_map = self.archive_table_column_map
+
+		for k, v in weatherlink.utils.calculate_all_record_values(record, self.record_minute_span).iteritems():
+			if k in column_map:
+				arguments[column_map[k]] = v
+
+	def recalculate_summaries_for_date(self, date):
+		pass
+
+	def _recalculate_daily_summary(self, date):
+		pass
+
+	def _recalculate_monthly_summary(self):
+		pass
+
+	def _recalculate_yearly_summary(self):
+		pass
+
+	def _recalculate_all_time_summary(self):
+		pass

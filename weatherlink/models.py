@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 import datetime
 import decimal
 import struct
@@ -271,7 +273,10 @@ class InstantaneousRecord(RecordDict):
 		'b'  # previaling wind direction (0-15, 255)
 		'b'  # hi wind speed direction (0-15, 255)
 		'h'  # number of wind samples this time period
-		'6x'  # unused solar bits (ignored)
+		'h'  # average solar rad this time period in watts / meter squared
+		'h'  # high solar radiation this time period in watts / meter squared
+		'B'  # UV index
+		'B'  # high UV index during this time period
 		'50x'  # other unused items (ignored)
 	)
 	RECORD_FORMAT_DOWNLOAD = (
@@ -280,19 +285,23 @@ class InstantaneousRecord(RecordDict):
 		'h'  # hi outside temp this time period in tenths of degrees
 		'h'  # low outside temp this time period in tenths of degrees
 		'H'  # raw rain clicks (clicks masked with type)
-		'h'  # high rain rate this time period in raw clicks/hr
-		'h'  # barometric pressure in thousandths of inches of mercury
+		'H'  # high rain rate this time period in raw clicks/hr
+		'H'  # barometric pressure in thousandths of inches of mercury
 		'h'  # average solar rad this time period in watts / meter squared
-		'h'  # number of wind samples this time period
+		'H'  # number of wind samples this time period
 		'h'  # current inside temp in tenths of degrees
-		'b'  # inside humitidy in tenths of percents
-		'b'  # outside humitidy in tenths of percents
-		'b'  # wind speed in tenths of miles per hour
-		'b'  # hi wind speed this time period in tenths of miles per hour
-		'b'  # hi wind speed direction (0-15, 255)
-		'b'  # prevailing wind direction (0-15, 255)
-		'14x'  # unused for now (ignored)
-		'b'  # Download record type (0xFF = Rev A, 0x00 = Rev B)
+		'B'  # inside humitidy in tenths of percents
+		'B'  # outside humitidy in tenths of percents
+		'B'  # wind speed in tenths of miles per hour
+		'B'  # hi wind speed this time period in tenths of miles per hour
+		'B'  # hi wind speed direction (0-15, 255)
+		'B'  # prevailing wind direction (0-15, 255)
+		'B'  # UV index
+		'B'  # evapotranspiration in thousandths of inches (only during hour on top of hour)
+		'h'  # high solar radiation this time period in watts / meter squared
+		'B'  # high UV index during this time period
+		'9x'  # unused for now (ignored)
+		'B'  # Download record type (0xFF = Rev A, 0x00 = Rev B)
 		'9x'  # unused for now (ignored)
 	)
 	RECORD_LENGTH_WLK = 88
@@ -301,7 +310,7 @@ class InstantaneousRecord(RecordDict):
 		0: 1,
 	}
 	RECORD_VERIFICATION_MAP_DOWNLOAD = {
-		17: 0,
+		21: 0,
 	}
 	RECORD_SPECIAL_HANDLING_WLK = {10, 11}
 	RECORD_SPECIAL_HANDLING_DOWNLOAD = {0, 1, 5, 6}
@@ -323,6 +332,10 @@ class InstantaneousRecord(RecordDict):
 		('wind_direction_prevailing', WIND_DIRECTION_CODE_MAP.__getitem__, DASH_SMALL, ),
 		('wind_direction_speed_high', WIND_DIRECTION_CODE_MAP.__getitem__, DASH_SMALL, ),
 		('number_of_wind_samples', STRAIGHT_NUMBER, DASH_ZERO, ),
+		('solar_radiation', STRAIGHT_NUMBER, DASH_LARGE_NEGATIVE, ),
+		('solar_radiation_high', STRAIGHT_NUMBER, DASH_LARGE_NEGATIVE, ),
+		('uv_index', TENTHS, DASH_SMALL, ),
+		('uv_index_high', TENTHS, DASH_SMALL, ),
 	)
 	RECORD_ATTRIBUTE_MAP_DOWNLOAD = (
 		('__special', STRAIGHT_NUMBER, None, ),
@@ -333,7 +346,7 @@ class InstantaneousRecord(RecordDict):
 		('__special', STRAIGHT_NUMBER, None, ),
 		('__special', STRAIGHT_NUMBER, None, ),
 		('barometric_pressure', THOUSANDTHS, DASH_ZERO, ),
-		('solar_rad', STRAIGHT_NUMBER, DASH_LARGE, ),
+		('solar_radiation', STRAIGHT_NUMBER, DASH_LARGE, ),
 		('number_of_wind_samples', STRAIGHT_NUMBER, DASH_ZERO, ),
 		('temperature_inside', TENTHS, DASH_LARGE, ),
 		('humidity_inside', STRAIGHT_NUMBER, DASH_SMALL, ),
@@ -342,6 +355,10 @@ class InstantaneousRecord(RecordDict):
 		('wind_speed_high', STRAIGHT_NUMBER, DASH_ZERO, ),
 		('wind_direction_speed_high', WIND_DIRECTION_CODE_MAP.__getitem__, DASH_SMALL, ),
 		('wind_direction_prevailing', WIND_DIRECTION_CODE_MAP.__getitem__, DASH_SMALL, ),
+		('uv_index', TENTHS, DASH_SMALL, ),
+		('evapotranspiration', THOUSANDTHS, DASH_ZERO, ),
+		('solar_radiation_high', STRAIGHT_NUMBER, DASH_LARGE, ),
+		('uv_index_high', TENTHS, DASH_SMALL, ),
 		('record_version', STRAIGHT_NUMBER, None, ),
    )
 

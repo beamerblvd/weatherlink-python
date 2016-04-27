@@ -1,8 +1,10 @@
+from __future__ import absolute_import
+
 import decimal
 
 """
 It is important that all of the math in this module takes place using decimal precision. Floating-point precision is
-far too inaccurate.
+far too inaccurate and can cause errors of greater than plus/minus one degree in the results.
 """
 
 ONE = decimal.Decimal('1')
@@ -138,9 +140,10 @@ def _dew_point_gamma_m(T, RH):
 		).exp()
 	).ln()
 
+
 def calculate_dew_point(temperature, relative_humidity):
 	T = convert_fahrenheit_to_celsius(temperature)
-	RH = relative_humidity
+	RH = relative_humidity if isinstance(relative_humidity, decimal.Decimal) else decimal.Decimal(relative_humidity)
 	return convert_celsius_to_fahrenheit(
 		(DP_C * _dew_point_gamma_m(T, RH)) / (DP_B - _dew_point_gamma_m(T, RH))
 	).quantize(ONE_TENTH)
@@ -186,10 +189,13 @@ assert calculate_wind_chill(decimal.Decimal('0'), decimal.Decimal('45')) == deci
 
 
 def calculate_thw_index(temperature, relative_humidity, wind_speed):
+	hi = calculate_heat_index(temperature, relative_humidity)
+	if not hi:
+		return None
 	return (
-		calculate_heat_index(temperature, relative_humidity) -
-		(THW_INDEX_CONSTANT * wind_speed).quantize(ONE_TENTH, rounding=decimal.ROUND_DOWN)
+		hi - (THW_INDEX_CONSTANT * wind_speed).quantize(ONE_TENTH, rounding=decimal.ROUND_DOWN)
 	)
+assert calculate_thw_index(decimal.Decimal('69.9'), decimal.Decimal('90'), decimal.Decimal('5')) == None
 
 
 def calculate_thsw_index(temperature, relative_humidity, solar_radiation, wind_speed):
@@ -199,12 +205,156 @@ def calculate_thsw_index(temperature, relative_humidity, solar_radiation, wind_s
 	Thsw = T + (THSW_0_348 * E) - (THSW_0_70 * WS) + THSW_0_70 * (solar_radiation / (WS + 10)) - THSW_4_25
 	return convert_celsius_to_fahrenheit(Thsw).quantize(ONE_TENTH)
 
+
 def calculate_cooling_degree_days(average_temperature):
 	if average_temperature <= DEGREE_DAYS_THRESHOLD:
 		return None
 	return average_temperature - DEGREE_DAYS_THRESHOLD
+assert calculate_cooling_degree_days(DEGREE_DAYS_THRESHOLD - 1) == None
+assert calculate_cooling_degree_days(DEGREE_DAYS_THRESHOLD) == None
+assert calculate_cooling_degree_days(DEGREE_DAYS_THRESHOLD + 1) == ONE
+assert calculate_cooling_degree_days(decimal.Decimal('90')) == decimal.Decimal('25')
+
 
 def calculate_heating_degree_days(average_temperature):
 	if average_temperature >= DEGREE_DAYS_THRESHOLD:
 		return None
 	return DEGREE_DAYS_THRESHOLD - average_temperature
+assert calculate_heating_degree_days(DEGREE_DAYS_THRESHOLD + 1) == None
+assert calculate_heating_degree_days(DEGREE_DAYS_THRESHOLD) == None
+assert calculate_heating_degree_days(DEGREE_DAYS_THRESHOLD - 1) == ONE
+assert calculate_heating_degree_days(decimal.Decimal('10')) == decimal.Decimal('55')
+
+
+def _append_to_list(l, v):
+	if v:
+		l.append(v)
+
+
+def calculate_all_record_values(record, record_minute_span_default=30):
+	arguments = {}
+
+	wind_speed = record.get('wind_speed')
+	wind_speed_high = record.get('wind_speed_high')
+	humidity_outside = record.get('humidity_outside')
+	humidity_inside = record.get('humidity_inside')
+	barometric_pressure = record.get('barometric_pressure')
+	temperature_outside = record.get('temperature_outside')
+	temperature_outside_low = record.get('temperature_outside_low')
+	temperature_outside_high = record.get('temperature_outside_high')
+	temperature_inside = record.get('temperature_inside')
+	solar_radiation = record.get('solar_radiation')
+	solar_radiation_high = record.get('solar_radiation_high')
+
+	if wind_speed:
+		ws_mpm = wind_speed / 60
+		distance = ws_mpm * record.get('minutes_covered', record_minute_span_default)
+		arguments['wind_run_distance_total'] = distance
+
+	if humidity_outside and barometric_pressure:
+		if temperature_outside:
+			a = calculate_wet_bulb_temperature(temperature_outside, humidity_outside, barometric_pressure)
+			if a:
+				arguments['temperature_wet_bulb'] = a
+		if temperature_outside_low:
+			a = calculate_wet_bulb_temperature(temperature_outside_low, humidity_outside, barometric_pressure)
+			if a:
+				arguments['temperature_wet_bulb_low'] = a
+		if temperature_outside_high:
+			a = calculate_wet_bulb_temperature(temperature_outside_high, humidity_outside, barometric_pressure)
+			if a:
+				arguments['temperature_wet_bulb_high'] = a
+
+	if humidity_outside:
+		a = []
+		b = []
+		if temperature_outside:
+			_append_to_list(a, calculate_dew_point(temperature_outside, humidity_outside))
+			_append_to_list(b, calculate_heat_index(temperature_outside, humidity_outside))
+		if temperature_outside_low:
+			_append_to_list(a, calculate_dew_point(temperature_outside_low, humidity_outside))
+			_append_to_list(b, calculate_heat_index(temperature_outside_low, humidity_outside))
+		if temperature_outside_high:
+			_append_to_list(a, calculate_dew_point(temperature_outside_high, humidity_outside))
+			_append_to_list(b, calculate_heat_index(temperature_outside_high, humidity_outside))
+		if a:
+			arguments['dew_point_outside'] = a[0]
+			arguments['dew_point_outside_low'] = min(a)
+			arguments['dew_point_outside_high'] = max(a)
+		if b:
+			arguments['heat_index_outside'] = b[0]
+			arguments['heat_index_outside_low'] = min(b)
+			arguments['heat_index_outside_high'] = max(b)
+
+	if humidity_inside and temperature_inside:
+		a = calculate_dew_point(temperature_inside, humidity_inside)
+		b = calculate_heat_index(temperature_inside, humidity_inside)
+		if a:
+			arguments['dew_point_inside'] = a
+		if b:
+			arguments['heat_index_inside'] = b
+
+	if (wind_speed or wind_speed_high) and (temperature_outside or temperature_outside_high or temperature_outside_low):
+		a = []
+		if wind_speed and temperature_outside:
+			_append_to_list(a, calculate_wind_chill(temperature_outside, wind_speed))
+		if wind_speed and temperature_outside_high:
+			_append_to_list(a, calculate_wind_chill(temperature_outside_high, wind_speed))
+		if wind_speed and temperature_outside_low:
+			_append_to_list(a, calculate_wind_chill(temperature_outside_low, wind_speed))
+		if wind_speed_high and temperature_outside:
+			_append_to_list(a, calculate_wind_chill(temperature_outside, wind_speed_high))
+		if wind_speed_high and temperature_outside_high:
+			_append_to_list(a, calculate_wind_chill(temperature_outside_high, wind_speed_high))
+		if wind_speed_high and temperature_outside_low:
+			_append_to_list(a, calculate_wind_chill(temperature_outside_low, wind_speed_high))
+		if a:
+			arguments['wind_chill'] = a[0]
+			arguments['wind_chill_low'] = min(a)
+			arguments['wind_chill_high'] = max(a)
+
+	if humidity_outside and (temperature_outside or temperature_outside_high or temperature_outside_low):
+		ws = wind_speed if wind_speed else 0
+		wsh = wind_speed_high if wind_speed_high else 0
+
+		a = []
+		if temperature_outside:
+			_append_to_list(a, calculate_thw_index(temperature_outside, humidity_outside, ws))
+			_append_to_list(a, calculate_thw_index(temperature_outside, humidity_outside, wsh))
+		if temperature_outside_high:
+			_append_to_list(a, calculate_thw_index(temperature_outside_high, humidity_outside, ws))
+			_append_to_list(a, calculate_thw_index(temperature_outside_high, humidity_outside, wsh))
+		if temperature_outside_low:
+			_append_to_list(a, calculate_thw_index(temperature_outside_low, humidity_outside, ws))
+			_append_to_list(a, calculate_thw_index(temperature_outside_low, humidity_outside, wsh))
+		if a:
+			arguments['thw_index'] = a[0]
+			arguments['thw_index_low'] = min(a)
+			arguments['thw_index_high'] = max(a)
+
+		if solar_radiation or solar_radiation_high:
+			a = []
+			if temperature_outside and solar_radiation:
+				_append_to_list(a, calculate_thsw_index(temperature_outside, humidity_outside, solar_radiation, ws))
+				_append_to_list(a, calculate_thsw_index(temperature_outside, humidity_outside, solar_radiation, wsh))
+			if temperature_outside_high and solar_radiation:
+				_append_to_list(a, calculate_thsw_index(temperature_outside_high, humidity_outside, solar_radiation, ws))
+				_append_to_list(a, calculate_thsw_index(temperature_outside_high, humidity_outside, solar_radiation, wsh))
+			if temperature_outside_low and solar_radiation:
+				_append_to_list(a, calculate_thsw_index(temperature_outside_low, humidity_outside, solar_radiation, ws))
+				_append_to_list(a, calculate_thsw_index(temperature_outside_low, humidity_outside, solar_radiation, wsh))
+			if temperature_outside and solar_radiation_high:
+				_append_to_list(a, calculate_thsw_index(temperature_outside, humidity_outside, solar_radiation_high, ws))
+				_append_to_list(a, calculate_thsw_index(temperature_outside, humidity_outside, solar_radiation_high, wsh))
+			if temperature_outside_high and solar_radiation_high:
+				_append_to_list(a, calculate_thsw_index(temperature_outside_high, humidity_outside, solar_radiation_high, ws))
+				_append_to_list(a, calculate_thsw_index(temperature_outside_high, humidity_outside, solar_radiation_high, wsh))
+			if temperature_outside_low and solar_radiation_high:
+				_append_to_list(a, calculate_thsw_index(temperature_outside_low, humidity_outside, solar_radiation_high, ws))
+				_append_to_list(a, calculate_thsw_index(temperature_outside_low, humidity_outside, solar_radiation_high, wsh))
+			if a:
+				arguments['thsw_index'] = a[0]
+				arguments['thsw_index_low'] = min(a)
+				arguments['thsw_index_high'] = max(a)
+
+	return arguments
