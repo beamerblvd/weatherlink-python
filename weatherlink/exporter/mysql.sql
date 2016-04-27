@@ -51,9 +51,9 @@ CREATE TABLE `weather_archive_record` (
     `thsw_index_low` decimal(4,1) NULL COMMENT 'The low temperature-humidity-sun-wind index temperature during the archive period in ºF',
     `thsw_index_high` decimal(4,1) NULL COMMENT 'The high temperature-humidity-sun-wind index temperature during the archive period in ºF',
     PRIMARY KEY (`record_id`),
+    UNIQUE INDEX `g$exporter` (`timestamp_weatherlink`),
     INDEX `g$summary_analyzer` (`summary_year`, `summary_month`, `summary_day`),
-    INDEX `g$rain_event_analyzer` (`timestamp_station`, `rain_total`),
-    INDEX `g$exporter` (`timestamp_weatherlink`)
+    INDEX `g$rain_event_analyzer` (`timestamp_station`, `rain_total`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci COMMENT='Stores archived raw measurements and calculations for small periods of time';
 
 CREATE TABLE `weather_calculated_summary` (
