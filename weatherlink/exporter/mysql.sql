@@ -60,10 +60,10 @@ CREATE TABLE `weather_calculated_summary` (
     `summary_id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
     -- summary grouping information
     `summary_type` enum('DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY', 'ALL_TIME') NOT NULL COMMENT 'The summary type',
-    `summary_year` year(4) NULL COMMENT 'Which year this summary belongs to, if any',
-    `summary_month` tinyint unsigned NULL COMMENT 'Which month this summary belongs to, if any',
-    `summary_week` tinyint unsigned NULL COMMENT 'Which week this summary belongs to, if any',
-    `summary_day` tinyint unsigned NULL COMMENT 'Which day this summary belongs to, if any',
+    `summary_year` year(4) NOT NULL COMMENT 'Which year this summary belongs to, if any (0 = null, necessary for unique index)',
+    `summary_month` tinyint unsigned NOT NULL COMMENT 'Which month this summary belongs to, if any (0 = null, necessary for unique index)',
+    `summary_week` tinyint unsigned NOT NULL COMMENT 'Which week this summary belongs to, if any (0 = null, necessary for unique index)',
+    `summary_day` tinyint unsigned NOT NULL COMMENT 'Which day this summary belongs to, if any (0 = null, necessary for unique index)',
     -- averages, highs, lows, and totals of actual, physical measurements
     `temperature_outside_average` decimal(4,1) NULL COMMENT 'The average outdoor temperature during the summary period in ºF',
     `temperature_outside_low` decimal(4,1) NULL COMMENT 'The low outdoor temperature during the summary period in ºF',
@@ -123,7 +123,8 @@ CREATE TABLE `weather_calculated_summary` (
     `integrated_heating_degree_days` decimal(4,1) unsigned NULL COMMENT 'The total heating degree days for the summary period in ºF',
     `integrated_cooling_degree_days` decimal(4,1) unsigned NULL COMMENT 'The total cooling degree days for the summary period in ºF',
     PRIMARY KEY (`summary_id`),
-    INDEX `g$summary_locator` (`summary_type`, `summary_year`, `summary_month`, `summary_day`)
+    UNIQUE INDEX `g$summary_locator_day` (`summary_type`, `summary_year`, `summary_month`, `summary_day`, `summary_week`),
+    INDEX `g$summary_locator_week` (`summary_type`, `summary_year`, `summary_week`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci COMMENT='Stores daily, weekly, monthly, yearly, and all-time summaries';
 
 CREATE TABLE `weather_rain_event` (
@@ -136,5 +137,5 @@ CREATE TABLE `weather_rain_event` (
     `rain_rate_high` decimal(5,2) unsigned NULL COMMENT 'The highest recorderd rain rate during this rain event',
     PRIMARY KEY (`event_id`),
     UNIQUE INDEX `g$display` (`timestamp_start`),
-    INDEX `g$latest` (`timestamp_end`),
+    INDEX `g$latest` (`timestamp_end`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci COMMENT='Stores calculated rain event details';

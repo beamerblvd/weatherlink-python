@@ -243,13 +243,16 @@ class MySQLExporter(object):
 	def recalculate_summaries_for_date(self, date):
 		pass
 
-	def _recalculate_daily_summary(self, date):
+	def _recalculate_daily_summary(self, year, month, day):
 		pass
 
-	def _recalculate_monthly_summary(self):
+	def _recalculate_weekly_summary(self, year, week):
 		pass
 
-	def _recalculate_yearly_summary(self):
+	def _recalculate_monthly_summary(self, year, month):
+		pass
+
+	def _recalculate_yearly_summary(self, year):
 		pass
 
 	def _recalculate_all_time_summary(self):
@@ -306,7 +309,7 @@ class MySQLExporter(object):
 
 				cursor.fetchall()  # Fetch remaining rows to prevent an error.
 
-				if (datetime.datetime.now(self.station_time_zone) - last_rain) < THREE_HOURS_IN_SECONDS:
+				if (datetime.datetime.now(self.station_time_zone).replace(tzinfo=None) - last_rain).seconds < THREE_HOURS_IN_SECONDS:
 					# This is an ongoing rain event, so don't record the end yet.
 					last_rain = None
 

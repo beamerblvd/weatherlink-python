@@ -424,9 +424,10 @@ class InstantaneousRecord(RecordDict):
 
 		record = cls(**kwargs)
 
-		rain_code = arguments[5]
-		rain_collector_type = rain_code & 0xF000
-		rain_clicks = rain_code & 0x0FFF
+		# The online download does not contain this information, unfortunately
+		rain_collector_type = RAIN_COLLECTOR_TYPE_0_01_IN
+
+		rain_clicks = arguments[5]
 		rain_rate_clicks = arguments[6]
 
 		record.rain_collector_type = rain_collector_type
