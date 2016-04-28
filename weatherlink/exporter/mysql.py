@@ -6,6 +6,7 @@ import decimal
 import datetime
 
 import mysql.connector
+import mysql.connector.errors
 import pytz
 
 import weatherlink.utils
@@ -425,7 +426,7 @@ class MySQLExporter(object):
 				0,
 			)
 
-			where_clause = "summary_type = 'MONTHLY' AND summary_year = %s",
+			where_clause = "summary_type = 'MONTHLY' AND summary_year = %s"
 			where_arguments = [year]
 
 			self._aggregate_degree_days_and_wind_averages(cursor, summary_id, where_clause, where_arguments)
@@ -582,7 +583,7 @@ class MySQLExporter(object):
 			[hdd, cdd, wind_speed_high_10_minute_average, wind_speed_high_10_minute_average_direction, summary_id]
 		)
 
-	def _aggregate_average_wind_run_distance(cursor, summary_id, column, where_clause, where_arguments):
+	def _aggregate_average_wind_run_distance(self, cursor, summary_id, column, where_clause, where_arguments):
 		cursor.execute(
 			'SELECT avg(wind_run_distance_total) FROM weather_calculated_summary WHERE ' + where_clause + ';',
 			where_arguments,
@@ -593,11 +594,12 @@ class MySQLExporter(object):
 			cursor.execute(
 				'UPDATE weather_calculated_summary SET wind_run_distance_' + column + '_average = %s '
 				'WHERE summary_id = %s;',
-				[wind_run_distance_total_average, summary_id]
+				[wind_run_distance_total_average, summary_id],
 			)
 
 	def find_new_rain_events(self):
-		found_rain_events = 0, ongoing_rain_events = 0
+		found_rain_events = 0
+		ongoing_rain_events = 0
 		while True:
 			with self._get_cursor('SELECT max(timestamp_end) FROM weather_rain_event;', []) as cursor:
 				latest = cursor.fetchone()[0]
@@ -646,7 +648,11 @@ class MySQLExporter(object):
 					if old != event_max_rain_rate:
 						event_max_rate_time = timestamp_station
 
-				cursor.fetchall()  # Fetch remaining rows to prevent an error.
+				try:
+					cursor.fetchall()  # Fetch remaining rows to prevent an error.
+				except mysql.connector.errors.InterfaceError:
+					# This just means there were no remaining rows
+					pass
 
 				if (datetime.datetime.now(self.station_time_zone).replace(tzinfo=None) - last_rain).seconds < THREE_HOURS_IN_SECONDS:
 					# This is an ongoing rain event, so don't record the end yet.
@@ -669,6 +675,9 @@ class MySQLExporter(object):
 					],
 				)
 				self._connection.commit()
+
+				if not last_rain:
+					break
 
 		return found_rain_events, ongoing_rain_events
 
