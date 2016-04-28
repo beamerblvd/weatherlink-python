@@ -1,6 +1,5 @@
 from __future__ import absolute_import
 
-import collections
 import contextlib
 import decimal
 import datetime
@@ -20,8 +19,7 @@ can be used to calculate daily, weekly, monthly, yearly, and all-time summaries,
 COLUMN_MAP_DO_NOT_INSERT = '__do_not_insert_this_value__'
 
 THREE_HOURS_IN_SECONDS = 10800
-ZERO = decimal.Decimal('0.0')
-TENTHS = decimal.Decimal('0.01')
+HUNDREDTHS = decimal.Decimal('0.01')
 
 
 class MySQLExporter(object):
@@ -293,39 +291,13 @@ class MySQLExporter(object):
 				day,
 			)
 
-			# Yes, we want integer division here
-			# This is the maximum number of whole records that can fit in a 10-minute span
-			# It's only valid if the archive record minute span is 10 minutes or less
-			wind_speed_high_10_minute_average = wind_speed_high_10_minute_average_direction = None
-			wind_records_to_include = 10 / self.record_minute_span
-			if wind_records_to_include > 0:
-				speed_queue = collections.deque(maxlen=wind_records_to_include)
-				direction_queue = collections.deque(maxlen=wind_records_to_include)
-				current_max = ZERO
-				current_direction_list = []
-
-				query = (
-					'SELECT wind_speed, wind_speed_direction FROM weather_archive_record '
-					'WHERE summary_year = %s AND summary_month = %s AND summary_day = %s '
-					'ORDER BY timestamp_station;'
-				)
-				cursor.execute(query, [year, month, day])
-				for (wind_speed, wind_speed_direction, ) in cursor:
-					speed_queue.append(wind_speed)
-					direction_queue.append(wind_speed_direction)
-
-					if len(speed_queue) == wind_records_to_include:
-						# This is the rolling average of the last 10 minutes
-						average = sum(speed_queue) / wind_records_to_include
-						if average > current_max:
-							current_max = average
-							current_direction_list = list(direction_queue)
-
-				if current_max > ZERO:
-					wind_speed_high_10_minute_average = current_max
-					if current_direction_list:
-						count = collections.Counter(current_direction_list)
-						wind_speed_high_10_minute_average_direction = count.most_common()[0][0]
+			query = (
+				'SELECT wind_speed, wind_speed_direction FROM weather_archive_record '
+				'WHERE summary_year = %s AND summary_month = %s AND summary_day = %s '
+				'ORDER BY timestamp_station;'
+			)
+			cursor.execute(query, [year, month, day])
+			wsh10ma, wsh10mad = weatherlink.utils.calculate_10_minute_wind_average(cursor, self.record_minute_span)
 
 			# Calculate degree days
 			hdd = weatherlink.utils.calculate_heating_degree_days(average_temperature)
@@ -337,7 +309,7 @@ class MySQLExporter(object):
 				'integrated_heating_degree_days = %s, integrated_cooling_degree_days = %s, '
 				'wind_speed_high_10_minute_average = %s, wind_speed_high_10_minute_average_direction = %s '
 				'WHERE summary_id = %s;',
-				[hdd, cdd, wind_speed_high_10_minute_average, wind_speed_high_10_minute_average_direction, summary_id]
+				[hdd, cdd, wsh10ma, wsh10mad, summary_id]
 			)
 
 			self._connection.commit()
@@ -661,7 +633,7 @@ class MySQLExporter(object):
 				else:
 					found_rain_events += 1
 
-				average_rate = (sum(event_rain_rates) / len(event_rain_rates)).quantize(TENTHS)
+				average_rate = (sum(event_rain_rates) / len(event_rain_rates)).quantize(HUNDREDTHS)
 
 				cursor.execute(
 					'INSERT INTO weather_rain_event (timestamp_start, timestamp_end, timestamp_rain_rate_high, '

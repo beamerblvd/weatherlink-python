@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+import collections
 import decimal
 
 """
@@ -7,6 +8,7 @@ It is important that all of the math in this module takes place using decimal pr
 far too inaccurate and can cause errors of greater than plus/minus one degree in the results.
 """
 
+ZERO = decimal.Decimal('0')
 ONE = decimal.Decimal('1')
 ONE_TENTH = decimal.Decimal('0.1')
 ONE_HUNDREDTH = ONE_TENTH * ONE_TENTH
@@ -71,6 +73,10 @@ WIND_CHILL_THRESHOLD = decimal.Decimal('40.0')  # degrees Fahrenheit
 DEGREE_DAYS_THRESHOLD = decimal.Decimal('65.0')  # degrees Fahrenheit
 
 
+def _as_decimal(value):
+	return value if isinstance(value, decimal.Decimal) else decimal.Decimal(value)
+
+
 def convert_fahrenheit_to_kelvin(temperature):
 	return (temperature + KELVIN_CONSTANT) * FIVE_NINTHS
 assert convert_fahrenheit_to_kelvin(32) == decimal.Decimal('273.15')
@@ -117,7 +123,7 @@ assert convert_miles_per_hour_to_meters_per_second(13) == decimal.Decimal('5.811
 
 def calculate_wet_bulb_temperature(temperature, relative_humidity, barometric_pressure):
 	T = temperature
-	RH = relative_humidity
+	RH = _as_decimal(relative_humidity)
 	P = convert_inches_of_mercury_to_millibars(barometric_pressure)
 	Tdc = (
 		T - (WB_14_55 + WB_0_114 * T) * (1 - (ONE_HUNDREDTH * RH)) -
@@ -143,7 +149,7 @@ def _dew_point_gamma_m(T, RH):
 
 def calculate_dew_point(temperature, relative_humidity):
 	T = convert_fahrenheit_to_celsius(temperature)
-	RH = relative_humidity if isinstance(relative_humidity, decimal.Decimal) else decimal.Decimal(relative_humidity)
+	RH = _as_decimal(relative_humidity)
 	return convert_celsius_to_fahrenheit(
 		(DP_C * _dew_point_gamma_m(T, RH)) / (DP_B - _dew_point_gamma_m(T, RH))
 	).quantize(ONE_TENTH)
@@ -160,7 +166,7 @@ def calculate_heat_index(temperature, relative_humidity):
 		return None
 
 	T = temperature
-	RH = relative_humidity
+	RH = _as_decimal(relative_humidity)
 	return (
 		HI_C1 + (HI_C2 * T) + (HI_C3 * RH) + (HI_C4 * T * RH) + (HI_C5 * T * T) +
 		(HI_C6 * RH * RH) + (HI_C7 * T * T * RH) + (HI_C8 * T * RH * RH) + (HI_C9 * T * T * RH * RH)
@@ -177,7 +183,8 @@ def calculate_wind_chill(temperature, wind_speed):
 		return None
 
 	T = temperature
-	V = wind_speed ** WC_V_EXP
+	WS = _as_decimal(wind_speed)
+	V = WS ** WC_V_EXP
 	return (
 		WC_C1 + (WC_C2 * T) - (WC_C3 * V) + (WC_C4 * T * V)
 	).quantize(ONE)
@@ -190,18 +197,20 @@ assert calculate_wind_chill(decimal.Decimal('0'), decimal.Decimal('45')) == deci
 
 def calculate_thw_index(temperature, relative_humidity, wind_speed):
 	hi = calculate_heat_index(temperature, relative_humidity)
+	WS = _as_decimal(wind_speed)
 	if not hi:
 		return None
 	return (
-		hi - (THW_INDEX_CONSTANT * wind_speed).quantize(ONE_TENTH, rounding=decimal.ROUND_DOWN)
+		hi - (THW_INDEX_CONSTANT * WS).quantize(ONE_TENTH, rounding=decimal.ROUND_DOWN)
 	)
 assert calculate_thw_index(decimal.Decimal('69.9'), decimal.Decimal('90'), decimal.Decimal('5')) == None
 
 
 def calculate_thsw_index(temperature, relative_humidity, solar_radiation, wind_speed):
 	T = convert_fahrenheit_to_celsius(temperature)
-	WS = convert_miles_per_hour_to_meters_per_second(wind_speed)
-	E = relative_humidity / 100 * THSW_6_105 * (THSW_17_27 * T / ( THSW_237_7 + T )).exp()
+	RH = _as_decimal(relative_humidity)
+	WS = convert_miles_per_hour_to_meters_per_second(_as_decimal(wind_speed))
+	E = RH / 100 * THSW_6_105 * (THSW_17_27 * T / ( THSW_237_7 + T )).exp()
 	Thsw = T + (THSW_0_348 * E) - (THSW_0_70 * WS) + THSW_0_70 * (solar_radiation / (WS + 10)) - THSW_4_25
 	return convert_celsius_to_fahrenheit(Thsw).quantize(ONE_TENTH)
 
@@ -226,6 +235,77 @@ assert calculate_heating_degree_days(DEGREE_DAYS_THRESHOLD - 1) == ONE
 assert calculate_heating_degree_days(decimal.Decimal('10')) == decimal.Decimal('55')
 
 
+def calculate_10_minute_wind_average(records, record_minute_span):
+	# Yes, we want integer division here
+	# This is the maximum number of whole records that can fit in a 10-minute span
+	# It's only valid if the archive record minute span is 10 minutes or less
+	wind_records_to_include = 10 / record_minute_span
+	if wind_records_to_include == 0:
+		return None, None
+
+	speed_queue = collections.deque(maxlen=wind_records_to_include)
+	direction_queue = collections.deque(maxlen=wind_records_to_include)
+	current_max = ZERO
+	current_direction_list = []
+
+	for (wind_speed, wind_speed_direction, ) in records:
+		wind_speed = _as_decimal(wind_speed)
+		speed_queue.append(wind_speed)
+		direction_queue.append(wind_speed_direction)
+
+		if len(speed_queue) == wind_records_to_include:
+			# This is the rolling average of the last 10 minutes
+			average = sum(speed_queue) / wind_records_to_include
+			if average > current_max:
+				current_max = average
+				current_direction_list = list(direction_queue)
+
+	if current_max > ZERO:
+		wind_speed_high_10_minute_average = current_max
+		if current_direction_list:
+			count = collections.Counter(current_direction_list)
+			wind_speed_high_10_minute_average_direction = count.most_common()[0][0]
+			return wind_speed_high_10_minute_average, wind_speed_high_10_minute_average_direction
+		return wind_speed_high_10_minute_average, None
+
+	return None, None
+assert (
+	calculate_10_minute_wind_average([], 5)
+	== (None, None, )
+)
+assert (
+	calculate_10_minute_wind_average([(1, 'NW', ), (1, 'NNW', ), (2, 'WNW', ), (1, 'NE', )], 11)
+	== (None, None, )
+)
+assert (
+	calculate_10_minute_wind_average([(1, 'NW', ), (1, 'NNW', ), (2, 'WNW', ), (1, 'NE', )], 10)
+	== (decimal.Decimal('2'), 'WNW', )
+)
+assert (
+	calculate_10_minute_wind_average([(1, 'NW', ), (1, 'NNW', ), (2, 'WNW', ), (1, 'NE', )], 5)
+	== (decimal.Decimal('1.5'), 'NNW', )
+)
+assert (
+	(
+		calculate_10_minute_wind_average(
+			[
+				(1, 'NW', ),
+				(1, 'NNW', ),
+				(2, 'N', ),
+				(1, 'NE', ),
+				(3, 'NE', ),
+				(1, 'N', ),
+				(2, 'NE', ),
+				(1, 'NNW', ),
+				(1, 'NNW', ),
+				(2, 'NNW', ),
+			],
+			2
+		)
+	) == (decimal.Decimal('1.8'), 'NE', )
+)
+
+
 def _append_to_list(l, v):
 	if v:
 		l.append(v)
@@ -234,7 +314,7 @@ def _append_to_list(l, v):
 def calculate_all_record_values(record, record_minute_span_default=30):
 	arguments = {}
 
-	wind_speed = record.get('wind_speed')
+	wind_speed = _as_decimal(record.get('wind_speed'))
 	wind_speed_high = record.get('wind_speed_high')
 	humidity_outside = record.get('humidity_outside')
 	humidity_inside = record.get('humidity_inside')
