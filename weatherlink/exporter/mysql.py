@@ -386,6 +386,8 @@ class MySQLExporter(object):
 
 			self._aggregate_degree_days_and_wind_averages(cursor, summary_id, where_clause, where_arguments)
 
+			self._aggregate_average_wind_run_distance(cursor, summary_id, 'daily', where_clause, where_arguments)
+
 			self._connection.commit()
 
 	def _recalculate_monthly_summary(self, year, month):
@@ -401,12 +403,12 @@ class MySQLExporter(object):
 				0,
 			)
 
-			self._aggregate_degree_days_and_wind_averages(
-				cursor,
-				summary_id,
-				"summary_type = 'DAILY' AND summary_year = %s AND summary_month = %s",
-				[year, month],
-			)
+			where_clause = "summary_type = 'DAILY' AND summary_year = %s AND summary_month = %s"
+			where_arguments = [year, month]
+
+			self._aggregate_degree_days_and_wind_averages(cursor, summary_id, where_clause, where_arguments)
+
+			self._aggregate_average_wind_run_distance(cursor, summary_id, 'daily', where_clause, where_arguments)
 
 			self._connection.commit()
 
@@ -423,12 +425,26 @@ class MySQLExporter(object):
 				0,
 			)
 
-			self._aggregate_degree_days_and_wind_averages(
+			where_clause = "summary_type = 'MONTHLY' AND summary_year = %s",
+			where_arguments = [year]
+
+			self._aggregate_degree_days_and_wind_averages(cursor, summary_id, where_clause, where_arguments)
+
+			self._aggregate_average_wind_run_distance(
 				cursor,
 				summary_id,
-				"summary_type = 'MONTHLY' AND summary_year = %s",
-				[year],
+				'daily',
+				"summary_type = 'DAILY' AND summary_year = %s",
+				where_arguments,
 			)
+			self._aggregate_average_wind_run_distance(
+				cursor,
+				summary_id,
+				'weekly',
+				"summary_type = 'WEEKLY' AND summary_year = %s",
+				where_arguments,
+			)
+			self._aggregate_average_wind_run_distance(cursor, summary_id, 'monthly', where_clause, where_arguments)
 
 			self._connection.commit()
 
@@ -565,6 +581,20 @@ class MySQLExporter(object):
 			'WHERE summary_id = %s;',
 			[hdd, cdd, wind_speed_high_10_minute_average, wind_speed_high_10_minute_average_direction, summary_id]
 		)
+
+	def _aggregate_average_wind_run_distance(cursor, summary_id, column, where_clause, where_arguments):
+		cursor.execute(
+			'SELECT avg(wind_run_distance_total) FROM weather_calculated_summary WHERE ' + where_clause + ';',
+			where_arguments,
+		)
+		wind_run_distance_total_average = cursor.fetchone()[0]
+
+		if wind_run_distance_total_average:
+			cursor.execute(
+				'UPDATE weather_calculated_summary SET wind_run_distance_' + column + '_average = %s '
+				'WHERE summary_id = %s;',
+				[wind_run_distance_total_average, summary_id]
+			)
 
 	def find_new_rain_events(self):
 		found_rain_events = 0, ongoing_rain_events = 0
