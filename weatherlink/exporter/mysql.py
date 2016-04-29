@@ -601,13 +601,15 @@ class MySQLExporter(object):
 				event_rain_rates = [start_record[2]]
 				event_max_rain_rate = event_rain_rates[0]
 				event_max_rate_time = last_rain
+				# At a 1-minute resolution (the max), 400 records is greater than 3 hours, so we can limit to that
+				# This limit might have to be increased if the 3-hour rain event threshold is changed
 				cursor.execute(
 					'SELECT timestamp_station, rain_total, rain_rate_high FROM weather_archive_record '
-					'WHERE timestamp_station > %s ORDER BY timestamp_station;',
+					'WHERE timestamp_station > %s ORDER BY timestamp_station LIMIT 400;',
 					[start_record[0]],
 				)
 				for (timestamp_station, rain_total, rain_rate_high) in cursor:
-					if (timestamp_station - last_rain).seconds > THREE_HOURS_IN_SECONDS:
+					if (timestamp_station - last_rain).total_seconds() > THREE_HOURS_IN_SECONDS:
 						break
 
 					if rain_total == 0:
@@ -627,7 +629,7 @@ class MySQLExporter(object):
 					# This just means there were no remaining rows
 					pass
 
-				if (datetime.datetime.now(self.station_time_zone).replace(tzinfo=None) - last_rain).seconds < THREE_HOURS_IN_SECONDS:
+				if (datetime.datetime.now(self.station_time_zone).replace(tzinfo=None) - last_rain).total_seconds() < THREE_HOURS_IN_SECONDS:
 					# This is an ongoing rain event, so don't record the end yet.
 					last_rain = None
 					ongoing_rain_events = 1
