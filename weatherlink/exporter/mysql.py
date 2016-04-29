@@ -299,6 +299,13 @@ class MySQLExporter(object):
 			cursor.execute(query, [year, month, day])
 			wsh10ma, wsh10mad, wsh10mas, wsh10mae = weatherlink.utils.calculate_10_minute_wind_average(cursor, self.record_minute_span)
 
+			if wsh10mas:
+				# The date represents the end of the record time span, so change it to the beginning for the start time
+				wsh10mas = wsh10mas - datetime.timedelta(minutes=self.record_minute_span)
+			if wsh10mae:
+				# We only need the time for the end, not the whole date, since the date part is the same as the start
+				wsh10mae = wsh10mae.time()
+
 			# Calculate degree days
 			hdd = weatherlink.utils.calculate_heating_degree_days(average_temperature)
 			cdd = weatherlink.utils.calculate_cooling_degree_days(average_temperature)
@@ -310,7 +317,7 @@ class MySQLExporter(object):
 				'wind_speed_high_10_minute_average = %s, wind_speed_high_10_minute_average_direction = %s, '
 				'wind_speed_high_10_minute_average_start = %s, wind_speed_high_10_minute_average_end = %s '
 				'WHERE summary_id = %s;',
-				[hdd, cdd, wsh10ma, wsh10mad, wsh10mas, wsh10mae.time() if wsh10mae else None, summary_id]
+				[hdd, cdd, wsh10ma, wsh10mad, wsh10mas, wsh10mae, summary_id]
 			)
 
 			self._connection.commit()
@@ -537,23 +544,25 @@ class MySQLExporter(object):
 		hdd, cdd = cursor.fetchone()
 
 		query = (
-			'SELECT wind_speed_high_10_minute_average, wind_speed_high_10_minute_average_direction '
+			'SELECT wind_speed_high_10_minute_average, wind_speed_high_10_minute_average_direction, '
+			'wind_speed_high_10_minute_average_start, wind_speed_high_10_minute_average_end '
 			'FROM weather_calculated_summary WHERE ' + where_clause +
 			' AND wind_speed_high_10_minute_average IS NOT NULL '
 			'ORDER BY wind_speed_high_10_minute_average DESC LIMIT 1;'
 		)
 		cursor.execute(query, where_arguments)
 		wind_values = cursor.fetchone()
-		wind_speed_high_10_minute_average = wind_speed_high_10_minute_average_direction = None
+		wsh10ma = wsh10mad = wsh10mas = wsh10mae = None
 		if wind_values:
-			wind_speed_high_10_minute_average, wind_speed_high_10_minute_average_direction = wind_values
+			wsh10ma, wsh10mad, wsh10mas, wsh10mae = wind_values
 
 		cursor.execute(
 			'UPDATE weather_calculated_summary SET '
 			'integrated_heating_degree_days = %s, integrated_cooling_degree_days = %s, '
-			'wind_speed_high_10_minute_average = %s, wind_speed_high_10_minute_average_direction = %s '
+			'wind_speed_high_10_minute_average = %s, wind_speed_high_10_minute_average_direction = %s, '
+			'wind_speed_high_10_minute_average_start = %s, wind_speed_high_10_minute_average_end = %s '
 			'WHERE summary_id = %s;',
-			[hdd, cdd, wind_speed_high_10_minute_average, wind_speed_high_10_minute_average_direction, summary_id]
+			[hdd, cdd, wsh10ma, wsh10mad, wsh10mas, wsh10mae, summary_id]
 		)
 
 	def _aggregate_average_wind_run_distance(self, cursor, summary_id, column, where_clause, where_arguments):
