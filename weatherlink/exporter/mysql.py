@@ -292,12 +292,12 @@ class MySQLExporter(object):
 			)
 
 			query = (
-				'SELECT wind_speed, wind_speed_direction FROM weather_archive_record '
+				'SELECT wind_speed, wind_speed_direction, timestamp_station FROM weather_archive_record '
 				'WHERE summary_year = %s AND summary_month = %s AND summary_day = %s '
 				'ORDER BY timestamp_station;'
 			)
 			cursor.execute(query, [year, month, day])
-			wsh10ma, wsh10mad = weatherlink.utils.calculate_10_minute_wind_average(cursor, self.record_minute_span)
+			wsh10ma, wsh10mad, wsh10mas, wsh10mae = weatherlink.utils.calculate_10_minute_wind_average(cursor, self.record_minute_span)
 
 			# Calculate degree days
 			hdd = weatherlink.utils.calculate_heating_degree_days(average_temperature)
@@ -307,9 +307,10 @@ class MySQLExporter(object):
 			cursor.execute(
 				'UPDATE weather_calculated_summary SET '
 				'integrated_heating_degree_days = %s, integrated_cooling_degree_days = %s, '
-				'wind_speed_high_10_minute_average = %s, wind_speed_high_10_minute_average_direction = %s '
+				'wind_speed_high_10_minute_average = %s, wind_speed_high_10_minute_average_direction = %s, '
+				'wind_speed_high_10_minute_average_start = %s, wind_speed_high_10_minute_average_end = %s '
 				'WHERE summary_id = %s;',
-				[hdd, cdd, wsh10ma, wsh10mad, summary_id]
+				[hdd, cdd, wsh10ma, wsh10mad, wsh10mas, wsh10mae.time(), summary_id]
 			)
 
 			self._connection.commit()

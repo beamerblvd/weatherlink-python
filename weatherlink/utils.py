@@ -10,6 +10,10 @@ far too inaccurate and can cause errors of greater than plus/minus one degree in
 
 ZERO = decimal.Decimal('0')
 ONE = decimal.Decimal('1')
+TWO = decimal.Decimal('2')
+FOUR = decimal.Decimal('4')
+FIVE = decimal.Decimal('5')
+TEN = decimal.Decimal('10')
 ONE_TENTH = decimal.Decimal('0.1')
 ONE_HUNDREDTH = ONE_TENTH * ONE_TENTH
 FIVE_NINTHS = decimal.Decimal('5.0') / decimal.Decimal('9.0')
@@ -40,6 +44,12 @@ DP_C = decimal.Decimal('243.5')  # degrees Celsius
 DP_D = decimal.Decimal('234.5')  # degrees Celsius
 
 # Heat index constants used by NOAA/NWS in its heat index tables
+HI_SECOND_FORMULA_THRESHOLD = decimal.Decimal('80.0')
+HI_0_094 = decimal.Decimal('0.094')
+HI_0_5 = decimal.Decimal('0.5')
+HI_1_2 = decimal.Decimal('1.2')
+HI_61_0 = decimal.Decimal('61.0')
+HI_68_0 = decimal.Decimal('68.0')
 HI_C1 = decimal.Decimal('-42.379')
 HI_C2 = decimal.Decimal('2.04901523')
 HI_C3 = decimal.Decimal('10.14333127')
@@ -49,6 +59,13 @@ HI_C6 = decimal.Decimal('-0.05481717')
 HI_C7 = decimal.Decimal('0.00122874')
 HI_C8 = decimal.Decimal('0.00085282')
 HI_C9 = decimal.Decimal('-0.00000199')
+HI_FIRST_ADJUSTMENT_THRESHOLD = (decimal.Decimal('80.0'), decimal.Decimal('112.0'), decimal.Decimal('13.0'), )
+HI_13 = decimal.Decimal('13')
+HI_17 = decimal.Decimal('17')
+HI_95 = decimal.Decimal('95')
+HI_SECOND_ADJUSTMENT_THRESHOLD = (decimal.Decimal('80.0'), decimal.Decimal('87.0'), decimal.Decimal('85.0'), )
+HI_85 = decimal.Decimal('85')
+HI_87 = decimal.Decimal('87')
 
 # Wind chill constants used by NOAA/NWS in its wind chill tables
 WC_C1 = decimal.Decimal('35.74')
@@ -161,21 +178,55 @@ assert calculate_dew_point(decimal.Decimal('32.0'), decimal.Decimal('99')) == de
 assert calculate_dew_point(decimal.Decimal('95.0'), decimal.Decimal('31')) == decimal.Decimal('59.2')
 
 
+def _abs(d):
+	return max(d, -d)
+
+
 def calculate_heat_index(temperature, relative_humidity):
 	if temperature < HEAT_INDEX_THRESHOLD:
 		return None
 
 	T = temperature
 	RH = _as_decimal(relative_humidity)
-	return (
+
+	# Formulas and constants taken from http://www.wpc.ncep.noaa.gov/html/heatindex_equation.shtml
+	heat_index = HI_0_5 * (T + HI_61_0 + ((T - HI_68_0) * HI_1_2) + (RH * HI_0_094))
+	heat_index = (heat_index + T) / TWO  # This is the average
+
+	if heat_index < HI_SECOND_FORMULA_THRESHOLD:
+		return heat_index.quantize(ONE_TENTH, rounding=decimal.ROUND_UP)
+
+	heat_index = (
 		HI_C1 + (HI_C2 * T) + (HI_C3 * RH) + (HI_C4 * T * RH) + (HI_C5 * T * T) +
 		(HI_C6 * RH * RH) + (HI_C7 * T * T * RH) + (HI_C8 * T * RH * RH) + (HI_C9 * T * T * RH * RH)
-	).quantize(ONE_TENTH, rounding=decimal.ROUND_UP)
+	)
+
+	if (HI_FIRST_ADJUSTMENT_THRESHOLD[0] <= T <= HI_FIRST_ADJUSTMENT_THRESHOLD[1]
+		and RH < HI_FIRST_ADJUSTMENT_THRESHOLD[2]):
+		heat_index -= (
+			((HI_13 - RH) / FOUR) * ((HI_17 - _abs(T - HI_95)) / HI_17).sqrt()
+		)
+	elif (HI_SECOND_ADJUSTMENT_THRESHOLD[0] <= T <= HI_SECOND_ADJUSTMENT_THRESHOLD[1]
+		and RH > HI_SECOND_ADJUSTMENT_THRESHOLD[2]):
+		heat_index += (
+			((RH - HI_85) / TEN) * ((HI_87 - T) / FIVE)
+		)
+
+	return heat_index.quantize(ONE_TENTH, rounding=decimal.ROUND_UP)
 assert calculate_heat_index(decimal.Decimal('69.9'), decimal.Decimal('90')) == None
-assert calculate_heat_index(decimal.Decimal('80'), decimal.Decimal('40')) == decimal.Decimal('80.0')
+assert calculate_heat_index(decimal.Decimal('80'), decimal.Decimal('40')) == decimal.Decimal('79.8')
 assert calculate_heat_index(decimal.Decimal('81.5'), decimal.Decimal('58')) == decimal.Decimal('83.5')
-assert calculate_heat_index(decimal.Decimal('80'), decimal.Decimal('100')) == decimal.Decimal('87.2')
+assert calculate_heat_index(decimal.Decimal('80'), decimal.Decimal('100')) == decimal.Decimal('89.3')
 assert calculate_heat_index(decimal.Decimal('100'), decimal.Decimal('65')) == decimal.Decimal('135.9')
+assert calculate_heat_index(decimal.Decimal('70.0'), decimal.Decimal('5')) == decimal.Decimal('68.5')
+assert calculate_heat_index(decimal.Decimal('70.2'), decimal.Decimal('5')) == decimal.Decimal('68.7')
+assert calculate_heat_index(decimal.Decimal('70.1'), decimal.Decimal('86')) == decimal.Decimal('70.5')
+assert calculate_heat_index(decimal.Decimal('70.1'), decimal.Decimal('42.5')) == decimal.Decimal('69.5')
+assert calculate_heat_index(decimal.Decimal('70.1'), decimal.Decimal('25')) == decimal.Decimal('69.1')
+assert calculate_heat_index(decimal.Decimal('80'), decimal.Decimal('86')) == decimal.Decimal('85.3')
+assert calculate_heat_index(decimal.Decimal('86'), decimal.Decimal('90')) == decimal.Decimal('105.4')
+assert calculate_heat_index(decimal.Decimal('95'), decimal.Decimal('12')) == decimal.Decimal('90.1')
+assert calculate_heat_index(decimal.Decimal('111'), decimal.Decimal('12')) == decimal.Decimal('107.0')
 
 
 def calculate_wind_chill(temperature, wind_speed):
@@ -184,15 +235,24 @@ def calculate_wind_chill(temperature, wind_speed):
 
 	T = temperature
 	WS = _as_decimal(wind_speed)
+
+	if WS == ZERO:  # No wind results in no chill, so skip it
+		return T
+
 	V = WS ** WC_V_EXP
-	return (
+	wind_chill = (
 		WC_C1 + (WC_C2 * T) - (WC_C3 * V) + (WC_C4 * T * V)
-	).quantize(ONE)
+	).quantize(ONE_TENTH)
+
+	return T if wind_chill > T else wind_chill
 assert calculate_wind_chill(decimal.Decimal('40.1'), decimal.Decimal('5')) == None
-assert calculate_wind_chill(decimal.Decimal('40.0'), decimal.Decimal('5')) == decimal.Decimal('36')
-assert calculate_wind_chill(decimal.Decimal('40.0'), decimal.Decimal('45')) == decimal.Decimal('26')
-assert calculate_wind_chill(decimal.Decimal('0'), decimal.Decimal('5')) == decimal.Decimal('-11')
-assert calculate_wind_chill(decimal.Decimal('0'), decimal.Decimal('45')) == decimal.Decimal('-30')
+assert calculate_wind_chill(decimal.Decimal('40.0'), decimal.Decimal('5')) == decimal.Decimal('36.5')
+assert calculate_wind_chill(decimal.Decimal('40.0'), decimal.Decimal('45')) == decimal.Decimal('26.3')
+assert calculate_wind_chill(decimal.Decimal('0'), decimal.Decimal('5')) == decimal.Decimal('-10.5')
+assert calculate_wind_chill(decimal.Decimal('0'), decimal.Decimal('45')) == decimal.Decimal('-30.0')
+assert calculate_wind_chill(decimal.Decimal('39.9'), decimal.Decimal('0')) == decimal.Decimal('39.9')
+assert calculate_wind_chill(decimal.Decimal('39.9'), decimal.Decimal('2')) == decimal.Decimal('39.7')
+assert calculate_wind_chill(decimal.Decimal('39.9'), decimal.Decimal('3')) == decimal.Decimal('38.3')
 
 
 def calculate_thw_index(temperature, relative_humidity, wind_speed):
@@ -241,17 +301,20 @@ def calculate_10_minute_wind_average(records, record_minute_span):
 	# It's only valid if the archive record minute span is 10 minutes or less
 	wind_records_to_include = 10 / record_minute_span
 	if wind_records_to_include == 0:
-		return None, None
+		return None, None, None, None
 
 	speed_queue = collections.deque(maxlen=wind_records_to_include)
 	direction_queue = collections.deque(maxlen=wind_records_to_include)
+	timestamp_queue = collections.deque(maxlen=wind_records_to_include)
 	current_max = ZERO
 	current_direction_list = []
+	current_timestamp_list = []
 
-	for (wind_speed, wind_speed_direction, ) in records:
+	for (wind_speed, wind_speed_direction, timestamp_station, ) in records:
 		wind_speed = _as_decimal(wind_speed)
 		speed_queue.append(wind_speed)
 		direction_queue.append(wind_speed_direction)
+		timestamp_queue.append(timestamp_station)
 
 		if len(speed_queue) == wind_records_to_include:
 			# This is the rolling average of the last 10 minutes
@@ -259,50 +322,65 @@ def calculate_10_minute_wind_average(records, record_minute_span):
 			if average > current_max:
 				current_max = average
 				current_direction_list = list(direction_queue)
+				current_timestamp_list = list(timestamp_queue)
 
 	if current_max > ZERO:
 		wind_speed_high_10_minute_average = current_max
+
+		wind_speed_high_10_minute_average_direction = None
+		wind_speed_high_10_minute_average_start = None
+		wind_speed_high_10_minute_average_end = None
+
 		if current_direction_list:
 			count = collections.Counter(current_direction_list)
 			wind_speed_high_10_minute_average_direction = count.most_common()[0][0]
-			return wind_speed_high_10_minute_average, wind_speed_high_10_minute_average_direction
-		return wind_speed_high_10_minute_average, None
 
-	return None, None
+		if current_timestamp_list:
+			wind_speed_high_10_minute_average_start = current_timestamp_list[0]
+			wind_speed_high_10_minute_average_end = current_timestamp_list[-1]
+
+		return (
+			wind_speed_high_10_minute_average,
+			wind_speed_high_10_minute_average_direction,
+			wind_speed_high_10_minute_average_start,
+			wind_speed_high_10_minute_average_end,
+		)
+
+	return None, None, None, None
 assert (
 	calculate_10_minute_wind_average([], 5)
-	== (None, None, )
+	== (None, None, None, None, )
 )
 assert (
-	calculate_10_minute_wind_average([(1, 'NW', ), (1, 'NNW', ), (2, 'WNW', ), (1, 'NE', )], 11)
-	== (None, None, )
+	calculate_10_minute_wind_average([(1, 'NW', 10, ), (1, 'NNW', 11, ), (2, 'WNW', 12, ), (1, 'NE', 13, )], 11)
+	== (None, None, None, None, )
 )
 assert (
-	calculate_10_minute_wind_average([(1, 'NW', ), (1, 'NNW', ), (2, 'WNW', ), (1, 'NE', )], 10)
-	== (decimal.Decimal('2'), 'WNW', )
+	calculate_10_minute_wind_average([(1, 'NW', 10, ), (1, 'NNW', 11, ), (2, 'WNW', 12, ), (1, 'NE', 13, )], 10)
+	== (decimal.Decimal('2'), 'WNW', 12, 12, )
 )
 assert (
-	calculate_10_minute_wind_average([(1, 'NW', ), (1, 'NNW', ), (2, 'WNW', ), (1, 'NE', )], 5)
-	== (decimal.Decimal('1.5'), 'NNW', )
+	calculate_10_minute_wind_average([(1, 'NW', 10, ), (1, 'NNW', 11, ), (2, 'WNW', 12, ), (1, 'NE', 13, )], 5)
+	== (decimal.Decimal('1.5'), 'NNW', 11, 12, )
 )
 assert (
 	(
 		calculate_10_minute_wind_average(
 			[
-				(1, 'NW', ),
-				(1, 'NNW', ),
-				(2, 'N', ),
-				(1, 'NE', ),
-				(3, 'NE', ),
-				(1, 'N', ),
-				(2, 'NE', ),
-				(1, 'NNW', ),
-				(1, 'NNW', ),
-				(2, 'NNW', ),
+				(1, 'NW', 10, ),
+				(1, 'NNW', 11, ),
+				(2, 'N', 12, ),
+				(1, 'NE', 13, ),
+				(3, 'NE', 14, ),
+				(1, 'N', 15, ),
+				(2, 'NE', 16, ),
+				(1, 'NNW', 17, ),
+				(1, 'NNW', 18, ),
+				(2, 'NNW', 19, ),
 			],
 			2
 		)
-	) == (decimal.Decimal('1.8'), 'NE', )
+	) == (decimal.Decimal('1.8'), 'NE', 12, 16, )
 )
 
 
