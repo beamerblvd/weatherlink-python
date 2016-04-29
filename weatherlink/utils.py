@@ -91,7 +91,7 @@ DEGREE_DAYS_THRESHOLD = decimal.Decimal('65.0')  # degrees Fahrenheit
 
 
 def _as_decimal(value):
-	return value if isinstance(value, decimal.Decimal) else decimal.Decimal(value)
+	return value if isinstance(value, decimal.Decimal) else decimal.Decimal(value or '0')
 
 
 def convert_fahrenheit_to_kelvin(temperature):

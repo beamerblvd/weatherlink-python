@@ -310,7 +310,7 @@ class MySQLExporter(object):
 				'wind_speed_high_10_minute_average = %s, wind_speed_high_10_minute_average_direction = %s, '
 				'wind_speed_high_10_minute_average_start = %s, wind_speed_high_10_minute_average_end = %s '
 				'WHERE summary_id = %s;',
-				[hdd, cdd, wsh10ma, wsh10mad, wsh10mas, wsh10mae.time(), summary_id]
+				[hdd, cdd, wsh10ma, wsh10mad, wsh10mas, wsh10mae.time() if wsh10mae else None, summary_id]
 			)
 
 			self._connection.commit()
