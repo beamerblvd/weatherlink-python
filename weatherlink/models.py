@@ -402,7 +402,7 @@ class InstantaneousRecord(RecordDict):
 		return record
 
 	@classmethod
-	def load_from_download(cls, response_handle):
+	def load_from_download(cls, response_handle, minutes_covered):
 		arguments = struct.unpack_from(
 			cls.RECORD_FORMAT_DOWNLOAD,
 			response_handle.read(cls.RECORD_LENGTH_DOWNLOAD),
@@ -423,6 +423,8 @@ class InstantaneousRecord(RecordDict):
 					kwargs[k] = cls.RECORD_ATTRIBUTE_MAP_DOWNLOAD[i][1](v)
 
 		record = cls(**kwargs)
+
+		record.minutes_covered = minutes_covered
 
 		# The online download does not contain this information, unfortunately
 		rain_collector_type = RAIN_COLLECTOR_TYPE_0_01_IN

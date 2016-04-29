@@ -27,7 +27,7 @@ downloader = Downloader(sys.argv[1], sys.argv[2])
 downloader.download(dateutil.parser.parse(sys.argv[3]))
 
 print 'Console version: %s' % downloader.console_version
-print 'Archive page size: %s' % downloader.archive_page_size
+print 'Record minute span: %s' % downloader.record_minute_span
 print 'Max records: %s' % downloader.max_account_records
 print 'Record count %s' % downloader.record_count
 print 'Records processed: %s' % len(downloader.records)

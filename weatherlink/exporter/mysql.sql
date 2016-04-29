@@ -4,6 +4,7 @@ CREATE TABLE `weather_archive_record` (
     `timestamp_weatherlink` bigint unsigned NOT NULL COMMENT 'The convoluted WeatherLink timestamp (see Python code for details)',
     `timestamp_station` datetime NOT NULL COMMENT 'The station-local date and time of the end of the archive record period (you must know station time zone for this to be useful)',
     `timestamp_utc` datetime NOT NULL COMMENT 'The UTC date and time of the end of the archive record period',
+    `minutes_covered` tinyint NOT NULL COMMENT 'The number of minutes this record spans, as set in the weather station console at time of recording',
     `summary_year` year(4) NOT NULL COMMENT 'Which summary year this record belongs to, if any',
     `summary_month` tinyint unsigned NOT NULL COMMENT 'Which summary month this record belongs to, if any',
     `summary_day` tinyint unsigned NOT NULL COMMENT 'Which summary day this record belongs to, if any',

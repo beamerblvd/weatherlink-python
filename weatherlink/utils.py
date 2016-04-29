@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
 import collections
+import datetime
 import decimal
 
 """
@@ -295,30 +296,38 @@ assert calculate_heating_degree_days(DEGREE_DAYS_THRESHOLD - 1) == ONE
 assert calculate_heating_degree_days(decimal.Decimal('10')) == decimal.Decimal('55')
 
 
-def calculate_10_minute_wind_average(records, record_minute_span):
-	# Yes, we want integer division here
-	# This is the maximum number of whole records that can fit in a 10-minute span
-	# It's only valid if the archive record minute span is 10 minutes or less
-	wind_records_to_include = 10 / record_minute_span
-	if wind_records_to_include == 0:
-		return None, None, None, None
-
-	speed_queue = collections.deque(maxlen=wind_records_to_include)
-	direction_queue = collections.deque(maxlen=wind_records_to_include)
-	timestamp_queue = collections.deque(maxlen=wind_records_to_include)
+def calculate_10_minute_wind_average(records):
+	speed_queue = collections.deque(maxlen=10)
+	direction_queue = collections.deque(maxlen=10)
+	timestamp_queue = collections.deque(maxlen=10)
 	current_max = ZERO
 	current_direction_list = []
 	current_timestamp_list = []
 
-	for (wind_speed, wind_speed_direction, timestamp_station, ) in records:
-		wind_speed = _as_decimal(wind_speed)
-		speed_queue.append(wind_speed)
-		direction_queue.append(wind_speed_direction)
-		timestamp_queue.append(timestamp_station)
+	for (wind_speed, wind_speed_direction, timestamp_station, minutes_covered, ) in records:
+		if minutes_covered > 10:
+			# We can't calculate this unless all the records cover 10 or fewer minutes
+			return None, None, None, None
 
-		if len(speed_queue) == wind_records_to_include:
+		wind_speed = _as_decimal(wind_speed)
+
+		# We want each record to be present in the queue the same number of times as minutes it spans
+		# So if a record spans 5 minutes, it counts as 5 items in the 10-minute queue
+		speed_queue.extend([wind_speed] * minutes_covered)
+		direction_queue.extend([wind_speed_direction] * minutes_covered)
+
+		# The timestamp is special, because we need to do some math with it
+		if minutes_covered == 1:
+			timestamp_queue.append(timestamp_station)
+		else:
+			# The timestamp represents the end of the time span
+			timestamp_queue.extend(
+				[timestamp_station - datetime.timedelta(minutes=i) for i in range(minutes_covered - 1, -1, -1)]
+			)
+
+		if len(speed_queue) == 10:
 			# This is the rolling average of the last 10 minutes
-			average = sum(speed_queue) / wind_records_to_include
+			average = sum(speed_queue) / 10
 			if average > current_max:
 				current_max = average
 				current_direction_list = list(direction_queue)
@@ -348,39 +357,59 @@ def calculate_10_minute_wind_average(records, record_minute_span):
 
 	return None, None, None, None
 assert (
-	calculate_10_minute_wind_average([], 5)
+	calculate_10_minute_wind_average([])
 	== (None, None, None, None, )
 )
 assert (
-	calculate_10_minute_wind_average([(1, 'NW', 10, ), (1, 'NNW', 11, ), (2, 'WNW', 12, ), (1, 'NE', 13, )], 11)
+	calculate_10_minute_wind_average(
+		[
+			(1, 'NW', datetime.datetime(2016, 4, 29, 6, 5), 5, ),
+			(1, 'NNW', datetime.datetime(2016, 4, 29, 6, 15), 10, ),
+			(2, 'WNW', datetime.datetime(2016, 4, 29, 6, 26), 11, ),
+			(1, 'NE', datetime.datetime(2016, 4, 29, 6, 27), 1, ),
+		],
+	)
 	== (None, None, None, None, )
 )
 assert (
-	calculate_10_minute_wind_average([(1, 'NW', 10, ), (1, 'NNW', 11, ), (2, 'WNW', 12, ), (1, 'NE', 13, )], 10)
-	== (decimal.Decimal('2'), 'WNW', 12, 12, )
+	calculate_10_minute_wind_average(
+		[
+			(1, 'NW', datetime.datetime(2016, 4, 29, 6, 10), 10, ),
+			(1, 'NNW', datetime.datetime(2016, 4, 29, 6, 20), 10, ),
+			(2, 'WNW', datetime.datetime(2016, 4, 29, 6, 30), 10, ),
+			(1, 'NE', datetime.datetime(2016, 4, 29, 6, 40), 10, ),
+		],
+	)
+	== (decimal.Decimal('2'), 'WNW', datetime.datetime(2016, 4, 29, 6, 21), datetime.datetime(2016, 4, 29, 6, 30), )
 )
 assert (
-	calculate_10_minute_wind_average([(1, 'NW', 10, ), (1, 'NNW', 11, ), (2, 'WNW', 12, ), (1, 'NE', 13, )], 5)
-	== (decimal.Decimal('1.5'), 'NNW', 11, 12, )
+	calculate_10_minute_wind_average(
+		[
+			(1, 'NW', datetime.datetime(2016, 4, 29, 6, 5), 5, ),
+			(1, 'NNW', datetime.datetime(2016, 4, 29, 6, 10), 5, ),
+			(2, 'WNW', datetime.datetime(2016, 4, 29, 6, 15), 5, ),
+			(1, 'NE', datetime.datetime(2016, 4, 29, 6, 20), 5, ),
+		],
+	)
+	== (decimal.Decimal('1.5'), 'NNW', datetime.datetime(2016, 4, 29, 6, 6), datetime.datetime(2016, 4, 29, 6, 15), )
 )
 assert (
 	(
 		calculate_10_minute_wind_average(
 			[
-				(1, 'NW', 10, ),
-				(1, 'NNW', 11, ),
-				(2, 'N', 12, ),
-				(1, 'NE', 13, ),
-				(3, 'NE', 14, ),
-				(1, 'N', 15, ),
-				(2, 'NE', 16, ),
-				(1, 'NNW', 17, ),
-				(1, 'NNW', 18, ),
-				(2, 'NNW', 19, ),
+				(1, 'NW', datetime.datetime(2016, 4, 29, 6, 2), 2, ),
+				(1, 'NNW', datetime.datetime(2016, 4, 29, 6, 4), 2, ),
+				(2, 'N', datetime.datetime(2016, 4, 29, 6, 6), 2, ),
+				(1, 'NE', datetime.datetime(2016, 4, 29, 6, 8), 2, ),
+				(3, 'NE', datetime.datetime(2016, 4, 29, 6, 10), 2, ),
+				(1, 'N', datetime.datetime(2016, 4, 29, 6, 12), 2, ),
+				(2, 'NE', datetime.datetime(2016, 4, 29, 6, 14), 2, ),
+				(1, 'NNW', datetime.datetime(2016, 4, 29, 6, 16), 2, ),
+				(1, 'NNW', datetime.datetime(2016, 4, 29, 6, 18), 2, ),
+				(2, 'NNW', datetime.datetime(2016, 4, 29, 6, 20), 2, ),
 			],
-			2
 		)
-	) == (decimal.Decimal('1.8'), 'NE', 12, 16, )
+	) == (decimal.Decimal('1.8'), 'NE', datetime.datetime(2016, 4, 29, 6, 5), datetime.datetime(2016, 4, 29, 6, 14), )
 )
 
 
@@ -389,7 +418,7 @@ def _append_to_list(l, v):
 		l.append(v)
 
 
-def calculate_all_record_values(record, record_minute_span_default=30):
+def calculate_all_record_values(record):
 	arguments = {}
 
 	wind_speed = _as_decimal(record.get('wind_speed'))
@@ -404,10 +433,9 @@ def calculate_all_record_values(record, record_minute_span_default=30):
 	solar_radiation = record.get('solar_radiation')
 	solar_radiation_high = record.get('solar_radiation_high')
 
-	minutes_covered = (record.get('minutes_covered', record_minute_span_default) or record_minute_span_default)
-	if wind_speed and minutes_covered:
+	if wind_speed:
 		ws_mpm = wind_speed / 60
-		distance = ws_mpm * minutes_covered
+		distance = ws_mpm * record['minutes_covered']
 		arguments['wind_run_distance_total'] = distance
 
 	if humidity_outside and barometric_pressure:

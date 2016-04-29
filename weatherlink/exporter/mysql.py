@@ -28,6 +28,7 @@ class MySQLExporter(object):
 		'timestamp': 'timestamp_weatherlink',
 	    'date': 'timestamp_station',
 	    'timestamp_utc': 'timestamp_utc',
+	    'minutes_covered': 'minutes_covered',
 	    'summary_year': 'summary_year',
 	    'summary_month': 'summary_month',
 	    'summary_day': 'summary_day',
@@ -79,6 +80,7 @@ class MySQLExporter(object):
 	ARCHIVE_ATTRIBUTES_TO_COPY = frozenset({
 		'timestamp',
 		'date',
+		'minutes_covered',
 		'temperature_outside',
 	    'temperature_outside_low',
 	    'temperature_outside_high',
@@ -113,7 +115,6 @@ class MySQLExporter(object):
 		self._archive_table_name = self.DEFAULT_ARCHIVE_TABLE_NAME
 		self._archive_table_column_map = self.DEFAULT_ARCHIVE_TABLE_COLUMN_MAP
 		self._station_time_zone = self.DEFAULT_TIME_ZONE
-		self._record_minute_span = 30
 
 		self._connection = None
 
@@ -140,14 +141,6 @@ class MySQLExporter(object):
 	@station_time_zone.setter
 	def station_time_zone(self, value):
 		self._station_time_zone = pytz.timezone(value) if isinstance(value, basestring) else value
-
-	@property
-	def record_minute_span(self):
-		return self._record_minute_span or 30
-
-	@record_minute_span.setter
-	def record_minute_span(self, value):
-		self._record_minute_span = value
 
 	def connect(self):
 		self._connection = mysql.connector.connect(
@@ -234,7 +227,7 @@ class MySQLExporter(object):
 	def _add_calculated_values_to_arguments(self, record, arguments):
 		column_map = self.archive_table_column_map
 
-		for k, v in weatherlink.utils.calculate_all_record_values(record, self.record_minute_span).iteritems():
+		for k, v in weatherlink.utils.calculate_all_record_values(record).iteritems():
 			if k in column_map:
 				arguments[column_map[k]] = v
 
@@ -292,16 +285,18 @@ class MySQLExporter(object):
 			)
 
 			query = (
-				'SELECT wind_speed, wind_speed_direction, timestamp_station FROM weather_archive_record '
-				'WHERE summary_year = %s AND summary_month = %s AND summary_day = %s '
+				'SELECT wind_speed, wind_speed_direction, timestamp_station, minutes_covered '
+				'FROM weather_archive_record WHERE summary_year = %s AND summary_month = %s AND summary_day = %s '
 				'ORDER BY timestamp_station;'
 			)
 			cursor.execute(query, [year, month, day])
-			wsh10ma, wsh10mad, wsh10mas, wsh10mae = weatherlink.utils.calculate_10_minute_wind_average(cursor, self.record_minute_span)
+			wsh10ma, wsh10mad, wsh10mas, wsh10mae = weatherlink.utils.calculate_10_minute_wind_average(cursor)
 
 			if wsh10mas:
 				# The date represents the end of the record time span, so change it to the beginning for the start time
-				wsh10mas = wsh10mas - datetime.timedelta(minutes=self.record_minute_span)
+				# We use one minute here instead of minutes_covered because the util function has already reduced all
+				# the records to one-minute records.
+				wsh10mas = wsh10mas - datetime.timedelta(minutes=1)
 			if wsh10mae:
 				# We only need the time for the end, not the whole date, since the date part is the same as the start
 				wsh10mae = wsh10mae.time()

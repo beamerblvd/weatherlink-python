@@ -25,7 +25,7 @@ class Downloader(object):
 		self.password = password
 
 		self.console_version = None
-		self.archive_page_size = None
+		self.record_minute_span = None
 		self.record_count = None
 		self.max_account_records = None
 		self.records = None
@@ -67,16 +67,19 @@ class Downloader(object):
 
 		assert headers['Model'] == '16'
 
-		self.console_version = headers['ConsoleVer']
-		self.archive_page_size = int(headers['ArchiveInt'])
-		self.record_count = int(headers['Records'])
-		self.max_account_records = int(headers['MaxRecords'])
+		self.console_version = headers['ConsoleVer']  # The console firmware version
+		self.record_minute_span = int(headers['ArchiveInt'])  # The console "archive interval" in minutes
+		self.record_count = int(headers['Records'])  # The number of records included in this response
+		self.max_account_records = int(headers['MaxRecords'])  # The maximum records this account will store
+
+		# For future possible use, the maxmimum time frame stored on the servers is the archive interval
+		# in minutes multiplied by the maximum records this account will store.
 
 	def _process_download(self, download_response_handle):
 		self.records = []
 
 		for i in range(0, self.record_count):
-			record = InstantaneousRecord.load_from_download(download_response_handle)
+			record = InstantaneousRecord.load_from_download(download_response_handle, self.record_minute_span)
 			if not record:
 				break
 
