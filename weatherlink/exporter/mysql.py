@@ -459,7 +459,7 @@ class MySQLExporter(object):
 		week_start=None, week_end=None,
 	):
 		# Get most statistics in simple, optimized query
-		# If this is a daily summary, we're selecting from the original table
+		# If this is a daily or weekly summary, we're selecting from the original table
 		query = (
 			'SELECT min(temperature_outside_low), max(temperature_outside_high), avg(temperature_outside), '
 			'min(temperature_inside), max(temperature_inside), avg(temperature_inside), '
@@ -481,8 +481,8 @@ class MySQLExporter(object):
 			'min(thsw_index_low), max(thsw_index_high), avg(thsw_index) '
 			'FROM weather_archive_record WHERE ' + where_clause + ';'
 		)
-		if summary_type != 'DAILY':
-			# If this is a monthly, weekly, or yearly summary, we're selecting from the summary table
+		if summary_type not in ('DAILY', 'WEEKLY', ):
+			# If this is a monthly, yearly, or all-time summary, we're selecting from the summary table
 			query = (
 				'SELECT min(temperature_outside_low), max(temperature_outside_high), avg(temperature_outside_average), '
 				'min(temperature_inside_low), max(temperature_inside_high), avg(temperature_inside_average), '
@@ -536,7 +536,7 @@ class MySQLExporter(object):
 
 		timestamp_columns = ''
 		timestamp_values = []
-		for rule in TIMESTAMP_CALCULATION_RULES:
+		for rule in self.TIMESTAMP_CALCULATION_RULES:
 			timestamp_columns += ', ' + rule[2] + ' = %s'
 
 			value = summary_values[rule[0]]
@@ -544,13 +544,13 @@ class MySQLExporter(object):
 				timestamp_values.append(None)
 				continue
 
-			# If this is a daily summary, we're selecting from the original table
+			# If this is a daily or weekly summary, we're selecting from the original table
 			table_name = 'weather_archive_record'
 			timestamp_column = 'timestamp_station'
 			value_column = rule[1][0]
 			_where_clause = where_clause
-			if summary_type != 'DAILY':
-				# If this is a monthly, weekly, or yearly summary, we're selecting from the summary table
+			if summary_type not in ('DAILY', 'WEEKLY', ):
+				# If this is a monthly, yearly, or all-time summary, we're selecting from the summary table
 				table_name = 'weather_calculated_summary'
 				timestamp_column = rule[2]
 				value_column = rule[1][1]
