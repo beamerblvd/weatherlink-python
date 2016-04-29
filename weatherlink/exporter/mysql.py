@@ -427,11 +427,39 @@ class MySQLExporter(object):
 	def _recalculate_all_time_summary(self):
 		pass
 
+	TIMESTAMP_CALCULATION_RULES = (
+		# This is a collection of rules, each rule having three members:
+		# 0. The index from _recalculate_summary_from_arguments.summary_values containing the value we're interested in
+		# 1. A tuple of the column names (for daily summaries and other summaries, respectively) to select
+		# 2. The destination timestamp column in which the found timestamp is going
+		(0, ('temperature_outside_low', 'temperature_outside_low', ), 'temperature_outside_low_timestamp', ),
+		(1, ('temperature_outside_high', 'temperature_outside_high', ), 'temperature_outside_high_timestamp', ),
+		(6, ('humidity_outside', 'humidity_outside_low', ), 'humidity_outside_low_timestamp', ),
+		(7, ('humidity_outside', 'humidity_outside_high', ), 'humidity_outside_high_timestamp', ),
+		(12, ('barometric_pressure', 'barometric_pressure_low', ), 'barometric_pressure_low_timestamp', ),
+		(13, ('barometric_pressure', 'barometric_pressure_high', ), 'barometric_pressure_high_timestamp', ),
+		(15, ('wind_speed_high', 'wind_speed_high', ), 'wind_speed_high_timestamp', ),
+		(19, ('rain_rate_high', 'rain_rate_high', ), 'rain_rate_high_timestamp', ),
+		(21, ('solar_radiation_high', 'solar_radiation_high', ), 'solar_radiation_high_timestamp', ),
+		(24, ('uv_index_high', 'uv_index_high', ), 'uv_index_high_timestamp', ),
+		(27, ('temperature_wet_bulb_low', 'temperature_wet_bulb_low', ), 'temperature_wet_bulb_low_timestamp', ),
+		(28, ('temperature_wet_bulb_high', 'temperature_wet_bulb_high', ), 'temperature_wet_bulb_high_timestamp', ),
+		(30, ('dew_point_outside_low', 'dew_point_outside_low', ), 'dew_point_outside_low_timestamp', ),
+		(31, ('dew_point_outside_high', 'dew_point_outside_high', ), 'dew_point_outside_high_timestamp', ),
+		(37, ('heat_index_outside_high', 'heat_index_outside_high', ), 'heat_index_outside_high_timestamp', ),
+		(42, ('wind_chill_low', 'wind_chill_low', ), 'wind_chill_low_timestamp', ),
+		(45, ('thw_index_low', 'thw_index_low', ), 'thw_index_low_timestamp', ),
+		(46, ('thw_index_high', 'thw_index_high', ), 'thw_index_high_timestamp', ),
+		(48, ('thsw_index_low', 'thsw_index_low', ), 'thsw_index_low_timestamp', ),
+		(49, ('thsw_index_high', 'thsw_index_high', ), 'thsw_index_high_timestamp', ),
+	)
+
 	def _recalculate_summary_from_arguments(
 		self, cursor, where_clause, where_arguments, summary_type, year, month, week, day,
 		week_start=None, week_end=None,
 	):
 		# Get most statistics in simple, optimized query
+		# If this is a daily summary, we're selecting from the original table
 		query = (
 			'SELECT min(temperature_outside_low), max(temperature_outside_high), avg(temperature_outside), '
 			'min(temperature_inside), max(temperature_inside), avg(temperature_inside), '
@@ -453,8 +481,31 @@ class MySQLExporter(object):
 			'min(thsw_index_low), max(thsw_index_high), avg(thsw_index) '
 			'FROM weather_archive_record WHERE ' + where_clause + ';'
 		)
+		if summary_type != 'DAILY':
+			# If this is a monthly, weekly, or yearly summary, we're selecting from the summary table
+			query = (
+				'SELECT min(temperature_outside_low), max(temperature_outside_high), avg(temperature_outside_average), '
+				'min(temperature_inside_low), max(temperature_inside_high), avg(temperature_inside_average), '
+				'min(humidity_outside_low), max(humidity_outside_high), avg(humidity_outside_average), '
+				'min(humidity_inside_low), max(humidity_inside_high), avg(humidity_inside_average), '
+				'min(barometric_pressure_low), max(barometric_pressure_high), avg(barometric_pressure_average), '
+				'max(wind_speed_high), avg(wind_speed_average), sum(wind_run_distance_total), '
+				'sum(rain_total), max(rain_rate_high), '
+				'min(solar_radiation_low), max(solar_radiation_high), avg(solar_radiation_average), '
+				'min(uv_index_low), max(uv_index_high), avg(uv_index_average), '
+				'sum(evapotranspiration), '
+				'min(temperature_wet_bulb_low), max(temperature_wet_bulb_high), avg(temperature_wet_bulb_average), '
+				'min(dew_point_outside_low), max(dew_point_outside_high), avg(dew_point_outside_average), '
+				'min(dew_point_inside_low), max(dew_point_inside_high), avg(dew_point_inside_average), '
+				'min(heat_index_outside_low), max(heat_index_outside_high), avg(heat_index_outside_average), '
+				'min(heat_index_inside_low), max(heat_index_inside_high), avg(heat_index_inside_average), '
+				'min(wind_chill_low), max(wind_chill_high), avg(wind_chill_average), '
+				'min(thw_index_low), max(thw_index_high), avg(thw_index_average), '
+				'min(thsw_index_low), max(thsw_index_high), avg(thsw_index_average) '
+				"FROM weather_calculated_summary WHERE summary_type = 'DAILY' AND " + where_clause + ';'
+			)
 		cursor.execute(query, where_arguments)
-		summary_values = cursor.fetchone()
+		summary_values = list(cursor.fetchone())
 
 		average_temperature = summary_values[2]
 		wind_speed_high = summary_values[15]
@@ -481,6 +532,39 @@ class MySQLExporter(object):
 			result = cursor.fetchone()
 			if result:
 				wind_speed_high_direction = result[0]
+		summary_values.extend([wind_direction_prevailing, wind_speed_high_direction])
+
+		timestamp_columns = ''
+		timestamp_values = []
+		for rule in TIMESTAMP_CALCULATION_RULES:
+			timestamp_columns += ', ' + rule[2] + ' = %s'
+
+			value = summary_values[rule[0]]
+			if not value:
+				timestamp_values.append(None)
+				continue
+
+			# If this is a daily summary, we're selecting from the original table
+			table_name = 'weather_archive_record'
+			timestamp_column = 'timestamp_station'
+			value_column = rule[1][0]
+			_where_clause = where_clause
+			if summary_type != 'DAILY':
+				# If this is a monthly, weekly, or yearly summary, we're selecting from the summary table
+				table_name = 'weather_calculated_summary'
+				timestamp_column = rule[2]
+				value_column = rule[1][1]
+				_where_clause = "summary_type = 'DAILY' AND " + where_clause
+
+			query = (
+				# It's possible, though unlikely, that multiple days or times will have the same extreme value
+				# When this happens, the first one is always the record holder
+				'SELECT ' + timestamp_column + ' FROM ' + table_name + ' WHERE ' + _where_clause +
+				' AND ' + value_column + ' = %s ORDER BY ' + timestamp_column + ' ASC LIMIT 1;'
+			)
+			cursor.execute(query, where_arguments + [value])
+			result = cursor.fetchone()
+			timestamp_values.append(result[0] if result else None)
 
 		# Find the existing summary, if there is one
 		query = (
@@ -523,10 +607,11 @@ class MySQLExporter(object):
 			'wind_chill_low = %s, wind_chill_high = %s, wind_chill_average = %s, '
 			'thw_index_low = %s, thw_index_high = %s, thw_index_average = %s, '
 			'thsw_index_low = %s, thsw_index_high = %s, thsw_index_average = %s, '
-			'wind_direction_prevailing = %s, wind_speed_high_direction = %s '
+			'wind_direction_prevailing = %s, wind_speed_high_direction = %s'
+			'' + timestamp_columns + ' '
 			'WHERE summary_id = %s;'
 		)
-		cursor.execute(query, list(summary_values) + [wind_direction_prevailing, wind_speed_high_direction, summary_id])
+		cursor.execute(query, summary_values + timestamp_values + [summary_id])
 
 		return summary_id, average_temperature
 
