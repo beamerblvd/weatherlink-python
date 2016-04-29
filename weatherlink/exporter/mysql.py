@@ -459,7 +459,8 @@ class MySQLExporter(object):
 		week_start=None, week_end=None,
 	):
 		# Get most statistics in simple, optimized query
-		# If this is a daily or weekly summary, we're selecting from the original table
+		# The idea was explored to select from weather_calculated_summary for longer-term summaries, but it
+		# affected the averages significantly and, thus, made them invalid.
 		query = (
 			'SELECT min(temperature_outside_low), max(temperature_outside_high), avg(temperature_outside), '
 			'min(temperature_inside), max(temperature_inside), avg(temperature_inside), '
@@ -481,29 +482,6 @@ class MySQLExporter(object):
 			'min(thsw_index_low), max(thsw_index_high), avg(thsw_index) '
 			'FROM weather_archive_record WHERE ' + where_clause + ';'
 		)
-		if summary_type not in ('DAILY', 'WEEKLY', ):
-			# If this is a monthly, yearly, or all-time summary, we're selecting from the summary table
-			query = (
-				'SELECT min(temperature_outside_low), max(temperature_outside_high), avg(temperature_outside_average), '
-				'min(temperature_inside_low), max(temperature_inside_high), avg(temperature_inside_average), '
-				'min(humidity_outside_low), max(humidity_outside_high), avg(humidity_outside_average), '
-				'min(humidity_inside_low), max(humidity_inside_high), avg(humidity_inside_average), '
-				'min(barometric_pressure_low), max(barometric_pressure_high), avg(barometric_pressure_average), '
-				'max(wind_speed_high), avg(wind_speed_average), sum(wind_run_distance_total), '
-				'sum(rain_total), max(rain_rate_high), '
-				'min(solar_radiation_low), max(solar_radiation_high), avg(solar_radiation_average), '
-				'min(uv_index_low), max(uv_index_high), avg(uv_index_average), '
-				'sum(evapotranspiration), '
-				'min(temperature_wet_bulb_low), max(temperature_wet_bulb_high), avg(temperature_wet_bulb_average), '
-				'min(dew_point_outside_low), max(dew_point_outside_high), avg(dew_point_outside_average), '
-				'min(dew_point_inside_low), max(dew_point_inside_high), avg(dew_point_inside_average), '
-				'min(heat_index_outside_low), max(heat_index_outside_high), avg(heat_index_outside_average), '
-				'min(heat_index_inside_low), max(heat_index_inside_high), avg(heat_index_inside_average), '
-				'min(wind_chill_low), max(wind_chill_high), avg(wind_chill_average), '
-				'min(thw_index_low), max(thw_index_high), avg(thw_index_average), '
-				'min(thsw_index_low), max(thsw_index_high), avg(thsw_index_average) '
-				"FROM weather_calculated_summary WHERE summary_type = 'DAILY' AND " + where_clause + ';'
-			)
 		cursor.execute(query, where_arguments)
 		summary_values = list(cursor.fetchone())
 
@@ -551,6 +529,7 @@ class MySQLExporter(object):
 			_where_clause = where_clause
 			if summary_type not in ('DAILY', 'WEEKLY', ):
 				# If this is a monthly, yearly, or all-time summary, we're selecting from the summary table
+				# This only affects averages, not extremes, so it's safe to do this to improve performance
 				table_name = 'weather_calculated_summary'
 				timestamp_column = rule[2]
 				value_column = rule[1][1]
