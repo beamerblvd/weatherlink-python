@@ -1,4 +1,7 @@
+from datetime import datetime
 from decimal import Decimal
+import imp
+import os
 from unittest import TestCase
 
 from weatherlink import utils
@@ -316,3 +319,115 @@ class TestIndexCalculation(TestCase):
 		self.assertEqual(Decimal('0.1'), utils.calculate_heating_degree_days(Decimal('64.9')))
 		self.assertEqual(Decimal('39.6'), utils.calculate_heating_degree_days(Decimal('25.4')))
 		self.assertEqual(Decimal('55'), utils.calculate_heating_degree_days(Decimal('10')))
+
+
+class TestHighTenMinuteWindAverageCalculation(TestCase):
+
+	def test_bogus_inputs_yield_empty_results(self):
+		avg, direction, start, end = utils.calculate_10_minute_wind_average([])
+
+		self.assertIsNone(avg)
+		self.assertIsNone(direction)
+		self.assertIsNone(start)
+		self.assertIsNone(end)
+
+		avg, direction, start, end = utils.calculate_10_minute_wind_average(())
+
+		self.assertIsNone(avg)
+		self.assertIsNone(direction)
+		self.assertIsNone(start)
+		self.assertIsNone(end)
+
+		avg, direction, start, end = utils.calculate_10_minute_wind_average(
+			[
+				(1, 'NW', datetime(2016, 4, 29, 6, 5), 5, ),
+				(1, 'NNW', datetime(2016, 4, 29, 6, 15), 10, ),
+				(2, 'WNW', datetime(2016, 4, 29, 6, 26), 11, ),
+				(1, 'NE', datetime(2016, 4, 29, 6, 27), 1, ),
+			],
+		)
+
+		self.assertIsNone(avg)
+		self.assertIsNone(direction)
+		self.assertIsNone(start)
+		self.assertIsNone(end)
+
+	def test_10_minute_record_period(self):
+		avg, direction, start, end = utils.calculate_10_minute_wind_average(
+			[
+				(1, 'NW', datetime(2016, 4, 29, 6, 10), 10, ),
+				(1, 'NNW', datetime(2016, 4, 29, 6, 20), 10, ),
+				(2, 'WNW', datetime(2016, 4, 29, 6, 30), 10, ),
+				(1, 'NE', datetime(2016, 4, 29, 6, 40), 10, ),
+			],
+		)
+
+		self.assertEqual(Decimal('2'), avg)
+		self.assertEqual('WNW', direction)
+		self.assertEqual(start, datetime(2016, 4, 29, 6, 21))
+		self.assertEqual(end, datetime(2016, 4, 29, 6, 30))
+
+		avg, direction, start, end = utils.calculate_10_minute_wind_average(
+			(
+				(Decimal('1'), 'NW', datetime(2016, 4, 29, 6, 10), Decimal('10'), ),
+				(Decimal('1'), 'NNW', datetime(2016, 4, 29, 6, 20), Decimal('10'), ),
+				(Decimal('2'), 'WNW', datetime(2016, 4, 29, 6, 30), Decimal('10'), ),
+				(Decimal('1'), 'NE', datetime(2016, 4, 29, 6, 40), Decimal('10'), ),
+			),
+		)
+
+		self.assertEqual(Decimal('2'), avg)
+		self.assertEqual('WNW', direction)
+		self.assertEqual(start, datetime(2016, 4, 29, 6, 21))
+		self.assertEqual(end, datetime(2016, 4, 29, 6, 30))
+
+	def test_5_minute_record_period(self):
+		avg, direction, start, end = utils.calculate_10_minute_wind_average(
+			[
+				(1, 'NW', datetime(2016, 4, 29, 6, 5), 5, ),
+				(1, 'NNW', datetime(2016, 4, 29, 6, 10), 5, ),
+				(2, 'WNW', datetime(2016, 4, 29, 6, 15), 5, ),
+				(1, 'NE', datetime(2016, 4, 29, 6, 20), 5, ),
+			]
+		)
+
+		self.assertEqual(Decimal('1.5'), avg)
+		self.assertEqual('NNW', direction)
+		self.assertEqual(start, datetime(2016, 4, 29, 6, 6))
+		self.assertEqual(end, datetime(2016, 4, 29, 6, 15))
+
+	def test_2_minute_record_period(self):
+		avg, direction, start, end = utils.calculate_10_minute_wind_average(
+			[
+				(1, 'NW', datetime(2016, 4, 29, 6, 2), 2, ),
+				(1, 'NNW', datetime(2016, 4, 29, 6, 4), 2, ),
+				(2, 'N', datetime(2016, 4, 29, 6, 6), 2, ),
+				(1, 'NE', datetime(2016, 4, 29, 6, 8), 2, ),
+				(3, 'NE', datetime(2016, 4, 29, 6, 10), 2, ),
+				(1, 'N', datetime(2016, 4, 29, 6, 12), 2, ),
+				(2, 'NE', datetime(2016, 4, 29, 6, 14), 2, ),
+				(1, 'NNW', datetime(2016, 4, 29, 6, 16), 2, ),
+				(1, 'NNW', datetime(2016, 4, 29, 6, 18), 2, ),
+				(2, 'NNW', datetime(2016, 4, 29, 6, 20), 2, ),
+			]
+		)
+
+		self.assertEqual(Decimal('1.8'), avg)
+		self.assertEqual('NE', direction)
+		self.assertEqual(start, datetime(2016, 4, 29, 6, 5))
+		self.assertEqual(end, datetime(2016, 4, 29, 6, 14))
+
+	def test_5_minute_record_actual_day_data(self):
+		sample_wind_data = imp.load_source(
+			'sample_wind_data',
+			os.path.dirname(os.path.dirname(os.path.realpath(__file__))) + '/data/sample_day_wind_data_5_minute.py',
+		)
+
+		avg, direction, start, end = utils.calculate_10_minute_wind_average(
+			[(s, d, datetime(*t), 5, ) for (s, d, t, ) in sample_wind_data.data]
+		)
+
+		self.assertEqual(Decimal('6.5'), avg)
+		self.assertEqual('SSW', direction)
+		self.assertEqual(start, datetime(2016, 4, 27, 12, 36))
+		self.assertEqual(end, datetime(2016, 4, 27, 12, 45))

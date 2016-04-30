@@ -562,11 +562,12 @@ def calculate_10_minute_wind_average(records):
 			return None, None, None, None
 
 		wind_speed = _as_decimal(wind_speed)
+		minutes_covered_int = 1 if minutes_covered < 1 else int(minutes_covered)
 
 		# We want each record to be present in the queue the same number of times as minutes it spans
 		# So if a record spans 5 minutes, it counts as 5 items in the 10-minute queue
-		speed_queue.extend([wind_speed] * minutes_covered)
-		direction_queue.extend([wind_speed_direction] * minutes_covered)
+		speed_queue.extend([wind_speed] * minutes_covered_int)
+		direction_queue.extend([wind_speed_direction] * minutes_covered_int)
 
 		# The timestamp is special, because we need to do some math with it
 		if minutes_covered <= 1:
@@ -574,7 +575,7 @@ def calculate_10_minute_wind_average(records):
 		else:
 			# The timestamp represents the end of the time span
 			timestamp_queue.extend(
-				[timestamp_station - datetime.timedelta(minutes=i) for i in range(minutes_covered - 1, -1, -1)]
+				[timestamp_station - datetime.timedelta(minutes=i) for i in range(minutes_covered_int - 1, -1, -1)]
 			)
 
 		if len(speed_queue) == 10:
@@ -608,59 +609,6 @@ def calculate_10_minute_wind_average(records):
 		)
 
 	return None, None, None, None
-assert (
-	calculate_10_minute_wind_average([]) == (None, None, None, None, )
-)
-assert (
-	calculate_10_minute_wind_average(
-		[
-			(1, 'NW', datetime.datetime(2016, 4, 29, 6, 5), 5, ),
-			(1, 'NNW', datetime.datetime(2016, 4, 29, 6, 15), 10, ),
-			(2, 'WNW', datetime.datetime(2016, 4, 29, 6, 26), 11, ),
-			(1, 'NE', datetime.datetime(2016, 4, 29, 6, 27), 1, ),
-		],
-	) == (None, None, None, None, )
-)
-assert (
-	calculate_10_minute_wind_average(
-		[
-			(1, 'NW', datetime.datetime(2016, 4, 29, 6, 10), 10, ),
-			(1, 'NNW', datetime.datetime(2016, 4, 29, 6, 20), 10, ),
-			(2, 'WNW', datetime.datetime(2016, 4, 29, 6, 30), 10, ),
-			(1, 'NE', datetime.datetime(2016, 4, 29, 6, 40), 10, ),
-		],
-	) ==
-	(decimal.Decimal('2'), 'WNW', datetime.datetime(2016, 4, 29, 6, 21), datetime.datetime(2016, 4, 29, 6, 30), )
-)
-assert (
-	calculate_10_minute_wind_average(
-		[
-			(1, 'NW', datetime.datetime(2016, 4, 29, 6, 5), 5, ),
-			(1, 'NNW', datetime.datetime(2016, 4, 29, 6, 10), 5, ),
-			(2, 'WNW', datetime.datetime(2016, 4, 29, 6, 15), 5, ),
-			(1, 'NE', datetime.datetime(2016, 4, 29, 6, 20), 5, ),
-		],
-	) ==
-	(decimal.Decimal('1.5'), 'NNW', datetime.datetime(2016, 4, 29, 6, 6), datetime.datetime(2016, 4, 29, 6, 15), )
-)
-assert (
-	(
-		calculate_10_minute_wind_average(
-			[
-				(1, 'NW', datetime.datetime(2016, 4, 29, 6, 2), 2, ),
-				(1, 'NNW', datetime.datetime(2016, 4, 29, 6, 4), 2, ),
-				(2, 'N', datetime.datetime(2016, 4, 29, 6, 6), 2, ),
-				(1, 'NE', datetime.datetime(2016, 4, 29, 6, 8), 2, ),
-				(3, 'NE', datetime.datetime(2016, 4, 29, 6, 10), 2, ),
-				(1, 'N', datetime.datetime(2016, 4, 29, 6, 12), 2, ),
-				(2, 'NE', datetime.datetime(2016, 4, 29, 6, 14), 2, ),
-				(1, 'NNW', datetime.datetime(2016, 4, 29, 6, 16), 2, ),
-				(1, 'NNW', datetime.datetime(2016, 4, 29, 6, 18), 2, ),
-				(2, 'NNW', datetime.datetime(2016, 4, 29, 6, 20), 2, ),
-			],
-		)
-	) == (decimal.Decimal('1.8'), 'NE', datetime.datetime(2016, 4, 29, 6, 5), datetime.datetime(2016, 4, 29, 6, 14), )
-)
 
 
 def _append_to_list(l, v):
