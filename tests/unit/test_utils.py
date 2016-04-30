@@ -164,6 +164,7 @@ class TestUnitConversion(TestCase):
 
 
 class TestIndexCalculation(TestCase):
+	# This heat index chart comes from NOAA/NWS: http://www.nws.noaa.gov/os/heat/heat_index.shtml
 	HEAT_INDEX_X_AXIS_TEMP = (80, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100, 102, 104, 106, 108, 110, )
 	HEAT_INDEX_Y_AXIS_HUMIDITY = (40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, )
 	HEAT_INDEX_CHART = (

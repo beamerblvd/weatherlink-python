@@ -7,7 +7,7 @@ import struct
 """
 The data formats in this file were obtained from Davis WeatherLink documentation in the following locations:
 	- http://www.davisnet.com/support/weather/download/VantageSerialProtocolDocs_v261.pdf
-	- C:/WeatherLink/Readmy 6.0.rtf
+	- C:/WeatherLink/Readme 6.0.rtf
 """
 
 DASH_LARGE = 32767
@@ -61,13 +61,13 @@ STRAIGHT_NUMBER = int
 STRAIGHT_DECIMAL = decimal.Decimal
 
 _TENTHS = decimal.Decimal('0.1')
-TENTHS = lambda x: x * _TENTHS  # noqa
+TENTHS = lambda x: x * _TENTHS
 
 _HUNDREDTHS = decimal.Decimal('0.01')
-HUNDREDTHS = lambda x: x * _HUNDREDTHS  # noqa
+HUNDREDTHS = lambda x: x * _HUNDREDTHS
 
 _THOUSANDTHS = decimal.Decimal('0.001')
-THOUSANDTHS = lambda x: x * _THOUSANDTHS  # noqa
+THOUSANDTHS = lambda x: x * _THOUSANDTHS
 
 
 def convert_datetime_to_timestamp(d):
