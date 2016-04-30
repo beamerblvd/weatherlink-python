@@ -6,8 +6,8 @@ import struct
 
 """
 The data formats in this file were obtained from Davis WeatherLink documentation in the following locations:
-  - http://www.davisnet.com/support/weather/download/VantageSerialProtocolDocs_v261.pdf
-  - C:/WeatherLink/Readmy 6.0.rtf
+	- http://www.davisnet.com/support/weather/download/VantageSerialProtocolDocs_v261.pdf
+	- C:/WeatherLink/Readmy 6.0.rtf
 """
 
 DASH_LARGE = 32767
@@ -61,13 +61,13 @@ STRAIGHT_NUMBER = int
 STRAIGHT_DECIMAL = decimal.Decimal
 
 _TENTHS = decimal.Decimal('0.1')
-TENTHS = lambda x: x * _TENTHS
+TENTHS = lambda x: x * _TENTHS  # noqa
 
 _HUNDREDTHS = decimal.Decimal('0.01')
-HUNDREDTHS = lambda x: x * _HUNDREDTHS
+HUNDREDTHS = lambda x: x * _HUNDREDTHS  # noqa
 
 _THOUSANDTHS = decimal.Decimal('0.001')
-THOUSANDTHS = lambda x: x * _THOUSANDTHS
+THOUSANDTHS = lambda x: x * _THOUSANDTHS  # noqa
 
 
 def convert_datetime_to_timestamp(d):
@@ -91,10 +91,7 @@ def convert_timestamp_to_datetime(timestamp):
 
 class RecordDict(dict):
 	def __getattr__(self, name):
-		try:
-			super(RecordDict, self).__getattr__(name)
-		except AttributeError:
-			return self.__getitem__(name)
+		return self.__getitem__(name)
 
 	def __setattr__(self, name, value):
 		self[name] = value
@@ -105,6 +102,7 @@ class Header(RecordDict):
 	VERSION_CODE_AND_COUNT_LENGTH = 20
 
 	def __init__(self, version_code, record_count, day_indexes):
+		super(Header, self).__init__()
 		self.version_code = version_code
 		self.record_count = record_count
 		self.day_indexes = day_indexes
@@ -128,6 +126,7 @@ class DayIndex(RecordDict):
 	DAY_INDEX_LENGTH = 6
 
 	def __init__(self, record_count, start_index):
+		super(DayIndex, self).__init__()
 		self.record_count = record_count
 		self.start_index = start_index
 
@@ -178,7 +177,7 @@ class DailySummary(RecordDict):
 		'h'  # integrated heating degree days in tenths of degrees
 		'2h'  # hi and low wet bulb temp in tenths of degrees
 		'h'  # average wet bulb temp in tenths of degrees
-		'24x'   # unused space for direction bins (ignored)
+		'24x'  # unused space for direction bins (ignored)
 		'15x'  # unused space for time values (ignored)
 		'h'  # integrated cooling degree days in tenths of degrees
 		'11x'  # reserved bytes (ignored)
@@ -226,7 +225,7 @@ class DailySummary(RecordDict):
 		('heat_index_average', TENTHS, DASH_LARGE, ),
 		('thw_index_high', TENTHS, DASH_LARGE_NEGATIVE, ),
 		('thw_index_low', TENTHS, DASH_LARGE, ),
-		('integrated_heating_degree_days', TENTHS, DASH_ZERO ),
+		('integrated_heating_degree_days', TENTHS, DASH_ZERO, ),
 		('temperature_wet_bulb_high', TENTHS, DASH_LARGE_NEGATIVE, ),
 		('temperature_wet_bulb_low', TENTHS, DASH_LARGE, ),
 		('temperature_wet_bulb_average', TENTHS, DASH_LARGE, ),
@@ -362,7 +361,7 @@ class InstantaneousRecord(RecordDict):
 		('solar_radiation_high', STRAIGHT_NUMBER, DASH_LARGE, ),
 		('uv_index_high', TENTHS, DASH_SMALL, ),
 		('record_version', STRAIGHT_NUMBER, None, ),
-   )
+	)
 
 	@classmethod
 	def load_from_wlk(cls, file_handle, year, month, day):

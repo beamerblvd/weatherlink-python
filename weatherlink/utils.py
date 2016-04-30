@@ -17,6 +17,7 @@ FIVE = decimal.Decimal('5')
 TEN = decimal.Decimal('10')
 ONE_TENTH = decimal.Decimal('0.1')
 ONE_HUNDREDTH = ONE_TENTH * ONE_TENTH
+ONE_THOUSANDTH = ONE_TENTH * ONE_HUNDREDTH
 FIVE_NINTHS = decimal.Decimal('5.0') / decimal.Decimal('9.0')
 NINE_FIFTHS = decimal.Decimal('9.0') / decimal.Decimal('5.0')
 
@@ -96,47 +97,31 @@ def _as_decimal(value):
 
 
 def convert_fahrenheit_to_kelvin(temperature):
-	return (temperature + KELVIN_CONSTANT) * FIVE_NINTHS
-assert convert_fahrenheit_to_kelvin(32) == decimal.Decimal('273.15')
-assert convert_fahrenheit_to_kelvin(60).quantize(decimal.Decimal('0.01')) == decimal.Decimal('288.71')
+	return ((temperature + KELVIN_CONSTANT) * FIVE_NINTHS).quantize(ONE_THOUSANDTH)
 
 
 def convert_kelvin_to_fahrenheit(temperature):
-	return (temperature * NINE_FIFTHS) - KELVIN_CONSTANT
-assert convert_kelvin_to_fahrenheit(convert_fahrenheit_to_kelvin(32)) == decimal.Decimal('32')
-assert convert_kelvin_to_fahrenheit(convert_fahrenheit_to_kelvin(60)).quantize(decimal.Decimal('0.00000001')) == decimal.Decimal('60')
+	return ((temperature * NINE_FIFTHS) - KELVIN_CONSTANT).quantize(ONE_THOUSANDTH)
 
 
 def convert_fahrenheit_to_celsius(temperature):
 	return (temperature - CELSIUS_CONSTANT) * FIVE_NINTHS
-assert convert_fahrenheit_to_celsius(32) == decimal.Decimal('0')
-assert convert_fahrenheit_to_celsius(212) == decimal.Decimal('100')
 
 
 def convert_celsius_to_fahrenheit(temperature):
 	return (temperature * NINE_FIFTHS) + CELSIUS_CONSTANT
-assert convert_celsius_to_fahrenheit(convert_fahrenheit_to_celsius(32)) == decimal.Decimal('32')
-assert convert_celsius_to_fahrenheit(convert_fahrenheit_to_celsius(212)) == decimal.Decimal('212')
 
 
 def convert_inches_of_mercury_to_kilopascals(barometric_pressure):
 	return (barometric_pressure / KILOPASCAL_MERCURY_CONSTANT).quantize(ONE_HUNDREDTH)
-assert convert_inches_of_mercury_to_kilopascals(1) == decimal.Decimal('3.39')
-assert convert_inches_of_mercury_to_kilopascals(decimal.Decimal('29.45')) == decimal.Decimal('99.73')
-assert convert_inches_of_mercury_to_kilopascals(30) == decimal.Decimal('101.59')
 
 
 def convert_inches_of_mercury_to_millibars(barometric_pressure):
 	return (barometric_pressure / MILLIBAR_MERCURY_CONSTANT).quantize(ONE_HUNDREDTH)
-assert convert_inches_of_mercury_to_millibars(1) == decimal.Decimal('33.86')
-assert convert_inches_of_mercury_to_millibars(decimal.Decimal('29.45')) == decimal.Decimal('997.29')
-assert convert_inches_of_mercury_to_millibars(30) == decimal.Decimal('1015.92')
 
 
 def convert_miles_per_hour_to_meters_per_second(wind_speed):
 	return wind_speed * METERS_PER_SECOND_CONSTANT
-assert convert_miles_per_hour_to_meters_per_second(1) == decimal.Decimal('0.44704')
-assert convert_miles_per_hour_to_meters_per_second(13) == decimal.Decimal('5.81152')
 
 
 def calculate_wet_bulb_temperature(temperature, relative_humidity, barometric_pressure):
@@ -150,11 +135,9 @@ def calculate_wet_bulb_temperature(temperature, relative_humidity, barometric_pr
 	)
 	E = WB_6_11 * 10 ** (WB_7_5 * Tdc / (WB_237_7 + Tdc))
 	return (
-		(((WB_0_00066 * P) * T) + ((4098 * E) / ((Tdc + WB_237_7) ** 2) * Tdc)) / ((WB_0_00066 * P) + (4098 * E) / ((Tdc + WB_237_7) ** 2))
+		(((WB_0_00066 * P) * T) + ((4098 * E) / ((Tdc + WB_237_7) ** 2) * Tdc)) /
+		((WB_0_00066 * P) + (4098 * E) / ((Tdc + WB_237_7) ** 2))
 	).quantize(ONE_TENTH)
-assert calculate_wet_bulb_temperature(decimal.Decimal('84.4'), decimal.Decimal('50'), decimal.Decimal('29.80')) == decimal.Decimal('69.4')
-assert calculate_wet_bulb_temperature(decimal.Decimal('91.5'), decimal.Decimal('45'), decimal.Decimal('30.01')) == decimal.Decimal('73.4')
-assert calculate_wet_bulb_temperature(decimal.Decimal('55.7'), decimal.Decimal('85'), decimal.Decimal('29.41')) == decimal.Decimal('52.8')
 
 
 def _dew_point_gamma_m(T, RH):
@@ -171,12 +154,6 @@ def calculate_dew_point(temperature, relative_humidity):
 	return convert_celsius_to_fahrenheit(
 		(DP_C * _dew_point_gamma_m(T, RH)) / (DP_B - _dew_point_gamma_m(T, RH))
 	).quantize(ONE_TENTH)
-assert calculate_dew_point(decimal.Decimal('83.1'), decimal.Decimal('54')) == decimal.Decimal('64.4')
-assert calculate_dew_point(decimal.Decimal('82.1'), decimal.Decimal('55')) == decimal.Decimal('64.0')
-assert calculate_dew_point(decimal.Decimal('77.9'), decimal.Decimal('58')) == decimal.Decimal('61.7')
-assert calculate_dew_point(decimal.Decimal('54.5'), decimal.Decimal('97')) == decimal.Decimal('53.6')
-assert calculate_dew_point(decimal.Decimal('32.0'), decimal.Decimal('99')) == decimal.Decimal('31.8')
-assert calculate_dew_point(decimal.Decimal('95.0'), decimal.Decimal('31')) == decimal.Decimal('59.2')
 
 
 def _abs(d):
@@ -202,32 +179,18 @@ def calculate_heat_index(temperature, relative_humidity):
 		(HI_C6 * RH * RH) + (HI_C7 * T * T * RH) + (HI_C8 * T * RH * RH) + (HI_C9 * T * T * RH * RH)
 	)
 
-	if (HI_FIRST_ADJUSTMENT_THRESHOLD[0] <= T <= HI_FIRST_ADJUSTMENT_THRESHOLD[1]
-		and RH < HI_FIRST_ADJUSTMENT_THRESHOLD[2]):
+	if (HI_FIRST_ADJUSTMENT_THRESHOLD[0] <= T <= HI_FIRST_ADJUSTMENT_THRESHOLD[1] and
+				RH < HI_FIRST_ADJUSTMENT_THRESHOLD[2]):
 		heat_index -= (
 			((HI_13 - RH) / FOUR) * ((HI_17 - _abs(T - HI_95)) / HI_17).sqrt()
 		)
-	elif (HI_SECOND_ADJUSTMENT_THRESHOLD[0] <= T <= HI_SECOND_ADJUSTMENT_THRESHOLD[1]
-		and RH > HI_SECOND_ADJUSTMENT_THRESHOLD[2]):
+	elif (HI_SECOND_ADJUSTMENT_THRESHOLD[0] <= T <= HI_SECOND_ADJUSTMENT_THRESHOLD[1] and
+							RH > HI_SECOND_ADJUSTMENT_THRESHOLD[2]):
 		heat_index += (
 			((RH - HI_85) / TEN) * ((HI_87 - T) / FIVE)
 		)
 
 	return heat_index.quantize(ONE_TENTH, rounding=decimal.ROUND_UP)
-assert calculate_heat_index(decimal.Decimal('69.9'), decimal.Decimal('90')) == None
-assert calculate_heat_index(decimal.Decimal('80'), decimal.Decimal('40')) == decimal.Decimal('79.8')
-assert calculate_heat_index(decimal.Decimal('81.5'), decimal.Decimal('58')) == decimal.Decimal('83.5')
-assert calculate_heat_index(decimal.Decimal('80'), decimal.Decimal('100')) == decimal.Decimal('89.3')
-assert calculate_heat_index(decimal.Decimal('100'), decimal.Decimal('65')) == decimal.Decimal('135.9')
-assert calculate_heat_index(decimal.Decimal('70.0'), decimal.Decimal('5')) == decimal.Decimal('68.5')
-assert calculate_heat_index(decimal.Decimal('70.2'), decimal.Decimal('5')) == decimal.Decimal('68.7')
-assert calculate_heat_index(decimal.Decimal('70.1'), decimal.Decimal('86')) == decimal.Decimal('70.5')
-assert calculate_heat_index(decimal.Decimal('70.1'), decimal.Decimal('42.5')) == decimal.Decimal('69.5')
-assert calculate_heat_index(decimal.Decimal('70.1'), decimal.Decimal('25')) == decimal.Decimal('69.1')
-assert calculate_heat_index(decimal.Decimal('80'), decimal.Decimal('86')) == decimal.Decimal('85.3')
-assert calculate_heat_index(decimal.Decimal('86'), decimal.Decimal('90')) == decimal.Decimal('105.4')
-assert calculate_heat_index(decimal.Decimal('95'), decimal.Decimal('12')) == decimal.Decimal('90.1')
-assert calculate_heat_index(decimal.Decimal('111'), decimal.Decimal('12')) == decimal.Decimal('107.0')
 
 
 def calculate_wind_chill(temperature, wind_speed):
@@ -246,14 +209,6 @@ def calculate_wind_chill(temperature, wind_speed):
 	).quantize(ONE_TENTH)
 
 	return T if wind_chill > T else wind_chill
-assert calculate_wind_chill(decimal.Decimal('40.1'), decimal.Decimal('5')) == None
-assert calculate_wind_chill(decimal.Decimal('40.0'), decimal.Decimal('5')) == decimal.Decimal('36.5')
-assert calculate_wind_chill(decimal.Decimal('40.0'), decimal.Decimal('45')) == decimal.Decimal('26.3')
-assert calculate_wind_chill(decimal.Decimal('0'), decimal.Decimal('5')) == decimal.Decimal('-10.5')
-assert calculate_wind_chill(decimal.Decimal('0'), decimal.Decimal('45')) == decimal.Decimal('-30.0')
-assert calculate_wind_chill(decimal.Decimal('39.9'), decimal.Decimal('0')) == decimal.Decimal('39.9')
-assert calculate_wind_chill(decimal.Decimal('39.9'), decimal.Decimal('2')) == decimal.Decimal('39.7')
-assert calculate_wind_chill(decimal.Decimal('39.9'), decimal.Decimal('3')) == decimal.Decimal('38.3')
 
 
 def calculate_thw_index(temperature, relative_humidity, wind_speed):
@@ -264,14 +219,13 @@ def calculate_thw_index(temperature, relative_humidity, wind_speed):
 	return (
 		hi - (THW_INDEX_CONSTANT * WS).quantize(ONE_TENTH, rounding=decimal.ROUND_DOWN)
 	)
-assert calculate_thw_index(decimal.Decimal('69.9'), decimal.Decimal('90'), decimal.Decimal('5')) == None
 
 
 def calculate_thsw_index(temperature, relative_humidity, solar_radiation, wind_speed):
 	T = convert_fahrenheit_to_celsius(temperature)
 	RH = _as_decimal(relative_humidity)
 	WS = convert_miles_per_hour_to_meters_per_second(_as_decimal(wind_speed))
-	E = RH / 100 * THSW_6_105 * (THSW_17_27 * T / ( THSW_237_7 + T )).exp()
+	E = RH / 100 * THSW_6_105 * (THSW_17_27 * T / (THSW_237_7 + T)).exp()
 	Thsw = T + (THSW_0_348 * E) - (THSW_0_70 * WS) + THSW_0_70 * (solar_radiation / (WS + 10)) - THSW_4_25
 	return convert_celsius_to_fahrenheit(Thsw).quantize(ONE_TENTH)
 
@@ -280,20 +234,12 @@ def calculate_cooling_degree_days(average_temperature):
 	if average_temperature <= DEGREE_DAYS_THRESHOLD:
 		return None
 	return average_temperature - DEGREE_DAYS_THRESHOLD
-assert calculate_cooling_degree_days(DEGREE_DAYS_THRESHOLD - 1) == None
-assert calculate_cooling_degree_days(DEGREE_DAYS_THRESHOLD) == None
-assert calculate_cooling_degree_days(DEGREE_DAYS_THRESHOLD + 1) == ONE
-assert calculate_cooling_degree_days(decimal.Decimal('90')) == decimal.Decimal('25')
 
 
 def calculate_heating_degree_days(average_temperature):
 	if average_temperature >= DEGREE_DAYS_THRESHOLD:
 		return None
 	return DEGREE_DAYS_THRESHOLD - average_temperature
-assert calculate_heating_degree_days(DEGREE_DAYS_THRESHOLD + 1) == None
-assert calculate_heating_degree_days(DEGREE_DAYS_THRESHOLD) == None
-assert calculate_heating_degree_days(DEGREE_DAYS_THRESHOLD - 1) == ONE
-assert calculate_heating_degree_days(decimal.Decimal('10')) == decimal.Decimal('55')
 
 
 def calculate_10_minute_wind_average(records):
@@ -357,8 +303,7 @@ def calculate_10_minute_wind_average(records):
 
 	return None, None, None, None
 assert (
-	calculate_10_minute_wind_average([])
-	== (None, None, None, None, )
+	calculate_10_minute_wind_average([]) == (None, None, None, None, )
 )
 assert (
 	calculate_10_minute_wind_average(
@@ -368,8 +313,7 @@ assert (
 			(2, 'WNW', datetime.datetime(2016, 4, 29, 6, 26), 11, ),
 			(1, 'NE', datetime.datetime(2016, 4, 29, 6, 27), 1, ),
 		],
-	)
-	== (None, None, None, None, )
+	) == (None, None, None, None, )
 )
 assert (
 	calculate_10_minute_wind_average(
@@ -379,8 +323,8 @@ assert (
 			(2, 'WNW', datetime.datetime(2016, 4, 29, 6, 30), 10, ),
 			(1, 'NE', datetime.datetime(2016, 4, 29, 6, 40), 10, ),
 		],
-	)
-	== (decimal.Decimal('2'), 'WNW', datetime.datetime(2016, 4, 29, 6, 21), datetime.datetime(2016, 4, 29, 6, 30), )
+	) ==
+	(decimal.Decimal('2'), 'WNW', datetime.datetime(2016, 4, 29, 6, 21), datetime.datetime(2016, 4, 29, 6, 30), )
 )
 assert (
 	calculate_10_minute_wind_average(
@@ -390,8 +334,8 @@ assert (
 			(2, 'WNW', datetime.datetime(2016, 4, 29, 6, 15), 5, ),
 			(1, 'NE', datetime.datetime(2016, 4, 29, 6, 20), 5, ),
 		],
-	)
-	== (decimal.Decimal('1.5'), 'NNW', datetime.datetime(2016, 4, 29, 6, 6), datetime.datetime(2016, 4, 29, 6, 15), )
+	) ==
+	(decimal.Decimal('1.5'), 'NNW', datetime.datetime(2016, 4, 29, 6, 6), datetime.datetime(2016, 4, 29, 6, 15), )
 )
 assert (
 	(
@@ -525,20 +469,50 @@ def calculate_all_record_values(record):
 				_append_to_list(a, calculate_thsw_index(temperature_outside, humidity_outside, solar_radiation, ws))
 				_append_to_list(a, calculate_thsw_index(temperature_outside, humidity_outside, solar_radiation, wsh))
 			if temperature_outside_high and solar_radiation:
-				_append_to_list(a, calculate_thsw_index(temperature_outside_high, humidity_outside, solar_radiation, ws))
-				_append_to_list(a, calculate_thsw_index(temperature_outside_high, humidity_outside, solar_radiation, wsh))
+				_append_to_list(
+					a,
+					calculate_thsw_index(temperature_outside_high, humidity_outside, solar_radiation, ws),
+				)
+				_append_to_list(
+					a,
+					calculate_thsw_index(temperature_outside_high, humidity_outside, solar_radiation, wsh),
+				)
 			if temperature_outside_low and solar_radiation:
-				_append_to_list(a, calculate_thsw_index(temperature_outside_low, humidity_outside, solar_radiation, ws))
-				_append_to_list(a, calculate_thsw_index(temperature_outside_low, humidity_outside, solar_radiation, wsh))
+				_append_to_list(
+					a,
+					calculate_thsw_index(temperature_outside_low, humidity_outside, solar_radiation, ws),
+				)
+				_append_to_list(
+					a,
+					calculate_thsw_index(temperature_outside_low, humidity_outside, solar_radiation, wsh),
+				)
 			if temperature_outside and solar_radiation_high:
-				_append_to_list(a, calculate_thsw_index(temperature_outside, humidity_outside, solar_radiation_high, ws))
-				_append_to_list(a, calculate_thsw_index(temperature_outside, humidity_outside, solar_radiation_high, wsh))
+				_append_to_list(
+					a,
+					calculate_thsw_index(temperature_outside, humidity_outside, solar_radiation_high, ws),
+				)
+				_append_to_list(
+					a,
+					calculate_thsw_index(temperature_outside, humidity_outside, solar_radiation_high, wsh),
+				)
 			if temperature_outside_high and solar_radiation_high:
-				_append_to_list(a, calculate_thsw_index(temperature_outside_high, humidity_outside, solar_radiation_high, ws))
-				_append_to_list(a, calculate_thsw_index(temperature_outside_high, humidity_outside, solar_radiation_high, wsh))
+				_append_to_list(
+					a,
+					calculate_thsw_index(temperature_outside_high, humidity_outside, solar_radiation_high, ws),
+				)
+				_append_to_list(
+					a,
+					calculate_thsw_index(temperature_outside_high, humidity_outside, solar_radiation_high, wsh),
+				)
 			if temperature_outside_low and solar_radiation_high:
-				_append_to_list(a, calculate_thsw_index(temperature_outside_low, humidity_outside, solar_radiation_high, ws))
-				_append_to_list(a, calculate_thsw_index(temperature_outside_low, humidity_outside, solar_radiation_high, wsh))
+				_append_to_list(
+					a,
+					calculate_thsw_index(temperature_outside_low, humidity_outside, solar_radiation_high, ws),
+				)
+				_append_to_list(
+					a,
+					calculate_thsw_index(temperature_outside_low, humidity_outside, solar_radiation_high, wsh),
+				)
 			if a:
 				arguments['thsw_index'] = a[0]
 				arguments['thsw_index_low'] = min(a)

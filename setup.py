@@ -17,7 +17,11 @@ dependency_links = [
 ]
 
 test_requirements = [
-
+	'coverage==4.0.3',
+	'nose==1.3.7',
+	'mock==2.0.0',
+	'nosexcover==1.0.10',
+	'unittest2==1.1.0',
 ]
 
 if sys.argv[-1] == 'info':
@@ -36,8 +40,10 @@ if sys.argv[-1] == 'tag':
 setup(
 	name='weatherlink',
 	version=__version__,
-	description=('A Python library for dealing with Davis(R) WeatherLink(R) database files, '
-				 'web service downloads, and console downloads'),
+	description=(
+		'A Python library for dealing with Davis(R) WeatherLink(R) database files, '
+		'web service downloads, and console downloads'
+	),
 	author='Nick Williams',
 	url='https://github.com/beamerblvd/weatherlink-python',
 	packages=packages,

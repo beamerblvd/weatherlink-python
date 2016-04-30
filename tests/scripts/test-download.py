@@ -1,10 +1,7 @@
 from __future__ import absolute_import
 
 import dateutil.parser
-import os
 import sys
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 from weatherlink.downloader import Downloader
 from weatherlink.utils import calculate_all_record_values
@@ -20,7 +17,7 @@ from weatherlink.utils import calculate_all_record_values
 # 	'VantageTX=0\r\n'
 # )
 
-# test-data/sample_download1.bin can be used to test _process_download directly
+# tests/data/sample_download.bin can be used to test _process_download directly
 
 downloader = Downloader(sys.argv[1], sys.argv[2])
 

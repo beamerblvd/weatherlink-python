@@ -12,7 +12,9 @@ _requests_session = requests.Session()
 
 
 class Downloader(object):
-	WEATHER_LINK_URL = 'http://weatherlink.com/webdl.php?timestamp={timestamp}&user={username}&pass={password}&action={action}'
+	WEATHER_LINK_URL = (
+		'http://weatherlink.com/webdl.php?timestamp={timestamp}&user={username}&pass={password}&action={action}'
+	)
 	ACTION_HEADERS = 'headers'
 	ACTION_DOWNLOAD = 'data'
 	ARCHIVE_RECORD_LENGTH = 52

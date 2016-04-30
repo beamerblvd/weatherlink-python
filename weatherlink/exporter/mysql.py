@@ -26,55 +26,55 @@ class MySQLExporter(object):
 	DEFAULT_ARCHIVE_TABLE_NAME = 'weather_archive_record'
 	DEFAULT_ARCHIVE_TABLE_COLUMN_MAP = {
 		'timestamp': 'timestamp_weatherlink',
-	    'date': 'timestamp_station',
-	    'timestamp_utc': 'timestamp_utc',
-	    'minutes_covered': 'minutes_covered',
-	    'summary_year': 'summary_year',
-	    'summary_month': 'summary_month',
-	    'summary_day': 'summary_day',
-	    # averages and end-of-period values of actual, physical measurements
-	    'temperature_outside': 'temperature_outside',
-	    'temperature_outside_low': 'temperature_outside_low',
-	    'temperature_outside_high': 'temperature_outside_high',
-	    'temperature_inside': 'temperature_inside',
-	    'humidity_outside': 'humidity_outside',
-	    'humidity_inside': 'humidity_inside',
-	    'barometric_pressure': 'barometric_pressure',
-	    'wind_speed': 'wind_speed',
-	    'wind_direction_prevailing': 'wind_speed_direction',
-	    'wind_speed_high': 'wind_speed_high',
-	    'wind_direction_speed_high': 'wind_speed_high_direction',
-	    'wind_run_distance_total': 'wind_run_distance_total',
-	    'rain_amount': 'rain_total',
-	    'rain_rate': 'rain_rate_high',
-	    'rain_amount_clicks': 'rain_clicks',
-	    'rain_rate_clicks': 'rain_click_rate_high',
-	    'solar_radiation': 'solar_radiation',
-	    'solar_radiation_high': 'solar_radiation_high',
-	    'uv_index': 'uv_index',
-	    'uv_index_high': 'uv_index_high',
-	    'evapotranspiration': 'evapotranspiration',
-	    # calculated values derived from two or more physical measurements
-	    'temperature_wet_bulb': 'temperature_wet_bulb',
-	    'temperature_wet_bulb_low': 'temperature_wet_bulb_low',
-	    'temperature_wet_bulb_high': 'temperature_wet_bulb_high',
-	    'dew_point_outside': 'dew_point_outside',
-	    'dew_point_outside_low': 'dew_point_outside_low',
-	    'dew_point_outside_high': 'dew_point_outside_high',
-	    'dew_point_inside': 'dew_point_inside',
-	    'heat_index_outside': 'heat_index_outside',
-	    'heat_index_outside_low': 'heat_index_outside_low',
-	    'heat_index_outside_high': 'heat_index_outside_high',
-	    'heat_index_inside': 'heat_index_inside',
-	    'wind_chill': 'wind_chill',
-	    'wind_chill_low': 'wind_chill_low',
-	    'wind_chill_high': 'wind_chill_high',
-	    'thw_index': 'thw_index',
-	    'thw_index_low': 'thw_index_low',
-	    'thw_index_high': 'thw_index_high',
-	    'thsw_index': 'thsw_index',
-	    'thsw_index_low': 'thsw_index_low',
-	    'thsw_index_high': 'thsw_index_high',
+		'date': 'timestamp_station',
+		'timestamp_utc': 'timestamp_utc',
+		'minutes_covered': 'minutes_covered',
+		'summary_year': 'summary_year',
+		'summary_month': 'summary_month',
+		'summary_day': 'summary_day',
+		# averages and end-of-period values of actual, physical measurements
+		'temperature_outside': 'temperature_outside',
+		'temperature_outside_low': 'temperature_outside_low',
+		'temperature_outside_high': 'temperature_outside_high',
+		'temperature_inside': 'temperature_inside',
+		'humidity_outside': 'humidity_outside',
+		'humidity_inside': 'humidity_inside',
+		'barometric_pressure': 'barometric_pressure',
+		'wind_speed': 'wind_speed',
+		'wind_direction_prevailing': 'wind_speed_direction',
+		'wind_speed_high': 'wind_speed_high',
+		'wind_direction_speed_high': 'wind_speed_high_direction',
+		'wind_run_distance_total': 'wind_run_distance_total',
+		'rain_amount': 'rain_total',
+		'rain_rate': 'rain_rate_high',
+		'rain_amount_clicks': 'rain_clicks',
+		'rain_rate_clicks': 'rain_click_rate_high',
+		'solar_radiation': 'solar_radiation',
+		'solar_radiation_high': 'solar_radiation_high',
+		'uv_index': 'uv_index',
+		'uv_index_high': 'uv_index_high',
+		'evapotranspiration': 'evapotranspiration',
+		# calculated values derived from two or more physical measurements
+		'temperature_wet_bulb': 'temperature_wet_bulb',
+		'temperature_wet_bulb_low': 'temperature_wet_bulb_low',
+		'temperature_wet_bulb_high': 'temperature_wet_bulb_high',
+		'dew_point_outside': 'dew_point_outside',
+		'dew_point_outside_low': 'dew_point_outside_low',
+		'dew_point_outside_high': 'dew_point_outside_high',
+		'dew_point_inside': 'dew_point_inside',
+		'heat_index_outside': 'heat_index_outside',
+		'heat_index_outside_low': 'heat_index_outside_low',
+		'heat_index_outside_high': 'heat_index_outside_high',
+		'heat_index_inside': 'heat_index_inside',
+		'wind_chill': 'wind_chill',
+		'wind_chill_low': 'wind_chill_low',
+		'wind_chill_high': 'wind_chill_high',
+		'thw_index': 'thw_index',
+		'thw_index_low': 'thw_index_low',
+		'thw_index_high': 'thw_index_high',
+		'thsw_index': 'thsw_index',
+		'thsw_index_low': 'thsw_index_low',
+		'thsw_index_high': 'thsw_index_high',
 	}
 
 	ARCHIVE_ATTRIBUTES_TO_COPY = frozenset({
@@ -82,25 +82,25 @@ class MySQLExporter(object):
 		'date',
 		'minutes_covered',
 		'temperature_outside',
-	    'temperature_outside_low',
-	    'temperature_outside_high',
-	    'temperature_inside',
-	    'humidity_outside',
-	    'humidity_inside',
-	    'barometric_pressure',
-	    'wind_speed',
-	    'wind_direction_prevailing',
-	    'wind_speed_high',
-	    'wind_direction_speed_high',
-	    'rain_amount',
-	    'rain_rate',
-	    'rain_amount_clicks',
-	    'rain_rate_clicks',
-	    'solar_radiation',
-	    'solar_radiation_high',
-	    'uv_index',
-	    'uv_index_high',
-	    'evapotranspiration',
+		'temperature_outside_low',
+		'temperature_outside_high',
+		'temperature_inside',
+		'humidity_outside',
+		'humidity_inside',
+		'barometric_pressure',
+		'wind_speed',
+		'wind_direction_prevailing',
+		'wind_speed_high',
+		'wind_direction_speed_high',
+		'rain_amount',
+		'rain_rate',
+		'rain_amount_clicks',
+		'rain_rate_clicks',
+		'solar_radiation',
+		'solar_radiation_high',
+		'uv_index',
+		'uv_index_high',
+		'evapotranspiration',
 	})
 
 	DEFAULT_TIME_ZONE = pytz.timezone('America/Chicago')
@@ -205,7 +205,7 @@ class MySQLExporter(object):
 			'VALUES (' + ', '.join(['%s'] * len(column_list)) + ');'
 		)
 
-		with self._get_cursor(statement, arguments) as cursor:
+		with self._get_cursor(statement, arguments):
 			self._connection.commit()
 
 	def _add_timestamp_values_to_arguments(self, record, arguments):
@@ -339,8 +339,8 @@ class MySQLExporter(object):
 			if week_start.year != week_end.year:
 				where_clause = (
 					"summary_type = 'DAILY' AND ( "
-						'(summary_year = %s AND summary_month = %s AND summary_day >= %s) OR '
-						'(summary_year = %s AND summary_month = %s AND summary_day <= %s)'
+					'(summary_year = %s AND summary_month = %s AND summary_day >= %s) OR '
+					'(summary_year = %s AND summary_month = %s AND summary_day <= %s)'
 					' )'
 				)
 				where_arguments = [
@@ -349,7 +349,7 @@ class MySQLExporter(object):
 			elif week_start.month != week_end.month:
 				where_clause = (
 					"summary_type = 'DAILY' AND summary_year = %s AND ( "
-						'(summary_month = %s AND summary_day >= %s) OR (summary_month = %s AND summary_day <= %s)'
+					'(summary_month = %s AND summary_day >= %s) OR (summary_month = %s AND summary_day <= %s)'
 					' )'
 				)
 				where_arguments = [week_start.year, week_start.month, week_start.day, week_end.month, week_end.day]
@@ -697,7 +697,8 @@ class MySQLExporter(object):
 					# This just means there were no remaining rows
 					pass
 
-				if (datetime.datetime.now(self.station_time_zone).replace(tzinfo=None) - last_rain).total_seconds() < THREE_HOURS_IN_SECONDS:
+				delta_now = datetime.datetime.now(self.station_time_zone).replace(tzinfo=None) - last_rain
+				if delta_now.total_seconds() < THREE_HOURS_IN_SECONDS:
 					# This is an ongoing rain event, so don't record the end yet.
 					last_rain = None
 					ongoing_rain_events = 1

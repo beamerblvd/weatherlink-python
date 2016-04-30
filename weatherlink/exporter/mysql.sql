@@ -1,6 +1,6 @@
 CREATE TABLE `weather_archive_record` (
     `record_id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
-    -- date and time informaton used for display, summary period analysis, and rain event analysis
+    -- date and time information used for display, summary period analysis, and rain event analysis
     `timestamp_weatherlink` bigint unsigned NOT NULL COMMENT 'The convoluted WeatherLink timestamp (see Python code for details)',
     `timestamp_station` datetime NOT NULL COMMENT 'The station-local date and time of the end of the archive record period (you must know station time zone for this to be useful)',
     `timestamp_utc` datetime NOT NULL COMMENT 'The UTC date and time of the end of the archive record period',
@@ -9,7 +9,7 @@ CREATE TABLE `weather_archive_record` (
     `summary_month` tinyint unsigned NOT NULL COMMENT 'Which summary month this record belongs to, if any',
     `summary_day` tinyint unsigned NOT NULL COMMENT 'Which summary day this record belongs to, if any',
     -- averages and end-of-period values of actual, physical measurements
-    `temperature_outside` decimal(4,1) NULL COMMENT 'The current outdoor temperature at the end of the archine period in ºF',
+    `temperature_outside` decimal(4,1) NULL COMMENT 'The current outdoor temperature at the end of the archive period in ºF',
     `temperature_outside_low` decimal(4,1) NULL COMMENT 'The low outdoor temperature during the archive period in ºF',
     `temperature_outside_high` decimal(4,1) NULL COMMENT 'The high outdoor temperature during the archive period in ºF',
     `temperature_inside` decimal(4,1) NULL COMMENT 'The current indoor temperature at the end of the archive period in ºF',
@@ -66,7 +66,7 @@ CREATE TABLE `weather_calculated_summary` (
     `summary_week` tinyint unsigned NOT NULL COMMENT 'Which week this summary belongs to, if any (0 = null, necessary for unique index)',
     `summary_day` tinyint unsigned NOT NULL COMMENT 'Which day this summary belongs to, if any (0 = null, necessary for unique index)',
     `week_start` date NULL COMMENT 'The start date of the week for only weekly summaries',
-    `week_end` date NULL COMMENT 'The end date of the week for onyl weekly summaries',
+    `week_end` date NULL COMMENT 'The end date of the week for only weekly summaries',
     -- averages, highs, lows, and totals of actual, physical measurements
     `temperature_outside_average` decimal(4,1) NULL COMMENT 'The average outdoor temperature during the summary period in ºF',
     `temperature_outside_low` decimal(4,1) NULL COMMENT 'The low outdoor temperature during the summary period in ºF',
@@ -163,7 +163,7 @@ CREATE TABLE `weather_rain_event` (
     `timestamp_rain_rate_high` datetime NOT NULL COMMENT 'The station-local date and time that the highest rain rate was recorded for this event',
     `rain_total` decimal(7,3) unsigned NOT NULL COMMENT 'The total amount of rain that fell during this rain event',
     `rain_rate_average` decimal(5,2) unsigned NULL COMMENT 'The average rain rate during this rain event',
-    `rain_rate_high` decimal(5,2) unsigned NULL COMMENT 'The highest recorderd rain rate during this rain event',
+    `rain_rate_high` decimal(5,2) unsigned NULL COMMENT 'The highest recorded rain rate during this rain event',
     PRIMARY KEY (`event_id`),
     UNIQUE INDEX `g$display` (`timestamp_start`),
     INDEX `g$latest` (`timestamp_end`)

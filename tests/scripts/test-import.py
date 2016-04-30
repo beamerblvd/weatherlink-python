@@ -1,9 +1,6 @@
 from __future__ import absolute_import
 
-import os
 import sys
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 from weatherlink.importer import Importer
 from weatherlink.utils import calculate_all_record_values
