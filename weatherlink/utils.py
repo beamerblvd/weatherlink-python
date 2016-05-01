@@ -107,6 +107,7 @@ WC_V_EXP = decimal.Decimal('0.16')
 THW_INDEX_CONSTANT = decimal.Decimal('1.072')
 
 # Constants used by the Australian Bureau of Meteorology for its apparent temperature (THSW) calculations
+THSW_0_25 = decimal.Decimal('0.25')
 THSW_0_348 = decimal.Decimal('0.348')
 THSW_0_70 = decimal.Decimal('0.70')
 THSW_4_25 = decimal.Decimal('4.25')
@@ -435,12 +436,21 @@ def calculate_thsw_index(temperature, relative_humidity, solar_radiation, wind_s
 	to calculate a potentially more accurate "felt-air temperature." Given that it uses all the variables that affect
 	how the human body perceives temperature, it is likely the most accurate measure of a true "feels like" temperature.
 	It is applied to all temperatures, high and low. Though named to mimic the THSW index from Davis Instruments, the
-	algorithm comes from the Australian Bureau of Meteorology. In this algorithm:
+	algorithm comes from the Australian Bureau of Meteorology
+	(http://www.bom.gov.au/info/thermal_stress/#atapproximation). The calculations for Q1, Q2, and Q3 come from
+	http://reg.bom.gov.au/amm/docs/1994/steadman.pdf. In this algorithm:
 
 	Tc is the temperature in degrees Celsius
 	RH is the relative humidity percentage
+	QD is the direct thermal radiation in watts absorbed per square meter of surface area
+	Qd is the diffuse thermal radiation in watts absorbed per square meter of surface area
+	Q1 is the thermal radiation in watts absorbed per square meter of surface area as measured by a pyranometer;
+		it represents "global radiation" (QD + Qd)
+	Q2 is the direct and diffuse radiation in watts absorbed per square meter of surface on the human body
+	Q3 is the ground-reflected radiation in watts absorbed per square meter of surface on the human body
+	Q is total thermal radiation that affects apparent temperature
 	WS is the wind speed in meters per second
-	E is the vapor pressure
+	E is the water vapor pressure
 	Thsw is the THSW index temperature
 
 	:param temperature: The temperature in degrees Fahrenheit
@@ -455,12 +465,27 @@ def calculate_thsw_index(temperature, relative_humidity, solar_radiation, wind_s
 	:return: The THSW index temperature in degrees Fahrenheit to one decimal place
 	:rtype: decimal.Decimal
 	"""
-	T = convert_fahrenheit_to_celsius(temperature)
+	Tc = convert_fahrenheit_to_celsius(temperature)
 	RH = _as_decimal(relative_humidity)
+	Q1 = _as_decimal(solar_radiation)
 	WS = convert_miles_per_hour_to_meters_per_second(_as_decimal(wind_speed))
 
-	E = RH / 100 * THSW_6_105 * (THSW_17_27 * T / (THSW_237_7 + T)).exp()
-	Thsw = T + (THSW_0_348 * E) - (THSW_0_70 * WS) + THSW_0_70 * (solar_radiation / (WS + 10)) - THSW_4_25
+	# TODO We know Q1 (input variable), and we know that Q1 = QD + Qd. But we need Qd. To do that, we need to figure
+	# TODO out how much of Q1 is Qd. So we calculate what QDe and Qde (e = expected) should be based on the angle of
+	# TODO the sun in the sky using radiation tables. Given that Q1e = QDe + Qde, we can solve for x in xQ1e = Q1
+	# TODO and apply x to QDe and Qde to determine the most likely QD and Qd. For now, we'll use a statistical average
+	# TODO to determine QD and Qd, given that Qd is usually 25% of Q1 in Tennessee in summer.
+
+	Qd = Q1 * THSW_0_25
+	# QDe, Qde = get_expected_solar_radiation(latitude, longitude, timestamp)
+	# QD = Q1 - Qd
+
+	Q2 = Qd / 7
+	Q3 = Q1 / 28
+	Q = Q2 + Q3
+
+	E = RH / 100 * THSW_6_105 * (THSW_17_27 * Tc / (THSW_237_7 + Tc)).exp()
+	Thsw = Tc + (THSW_0_348 * E) - (THSW_0_70 * WS) + ((THSW_0_70 * Q) / (WS + 10)) - THSW_4_25
 
 	return convert_celsius_to_fahrenheit(Thsw).quantize(ONE_TENTH)
 
@@ -527,8 +552,8 @@ def calculate_10_minute_wind_average(records):
 			period
 		- 10mwaTs is start time of the high 10-minute wind average period: in more technical terms, it is the result
 			of the following:
-			- If the number of minutes covered is less than or equal to 1, it is the value of the timestamp from the
-				first record in the high 10-minute wind average period
+			- If the number of minutes covered is 1, it is the value of the timestamp from the first record in the high
+				10-minute wind average period
 			- If the number of minutes covered is greater than 1, it is 1 less than minutes covered subtracted from
 				the value of the timestamp from the first record in the high 10-minute wind average period
 		- 10mwaTe is the end time of the high 10-minute wind average period
@@ -557,25 +582,25 @@ def calculate_10_minute_wind_average(records):
 	current_timestamp_list = []
 
 	for (wind_speed, wind_speed_direction, timestamp_station, minutes_covered, ) in records:
+		minutes_covered = int(minutes_covered)
 		if minutes_covered > 10:
 			# We can't calculate this unless all the records cover 10 or fewer minutes
 			return None, None, None, None
 
 		wind_speed = _as_decimal(wind_speed)
-		minutes_covered_int = 1 if minutes_covered < 1 else int(minutes_covered)
 
 		# We want each record to be present in the queue the same number of times as minutes it spans
 		# So if a record spans 5 minutes, it counts as 5 items in the 10-minute queue
-		speed_queue.extend([wind_speed] * minutes_covered_int)
-		direction_queue.extend([wind_speed_direction] * minutes_covered_int)
+		speed_queue.extend([wind_speed] * minutes_covered)
+		direction_queue.extend([wind_speed_direction] * minutes_covered)
 
 		# The timestamp is special, because we need to do some math with it
-		if minutes_covered <= 1:
+		if minutes_covered == 1:
 			timestamp_queue.append(timestamp_station)
 		else:
 			# The timestamp represents the end of the time span
 			timestamp_queue.extend(
-				[timestamp_station - datetime.timedelta(minutes=i) for i in range(minutes_covered_int - 1, -1, -1)]
+				[timestamp_station - datetime.timedelta(minutes=i) for i in range(minutes_covered - 1, -1, -1)]
 			)
 
 		if len(speed_queue) == 10:

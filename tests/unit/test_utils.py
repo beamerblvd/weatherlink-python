@@ -2,7 +2,10 @@ from datetime import datetime
 from decimal import Decimal
 import imp
 import os
-from unittest import TestCase
+from unittest import (
+	skip,
+	TestCase
+)
 
 from weatherlink import utils
 
@@ -273,21 +276,20 @@ class TestIndexCalculation(TestCase):
 
 	def test_calculate_wet_bulb_temperature(self):
 		self.assertAlmostEqual(
-			Decimal('69.4'),
+			Decimal('70.5'),
 			utils.calculate_wet_bulb_temperature(Decimal('84.4'), Decimal('50'), Decimal('29.80')),
-			delta=0.1,
+			delta=0.5,
 		)
 		self.assertAlmostEqual(
-			Decimal('73.4'),
+			Decimal('74.6'),
 			utils.calculate_wet_bulb_temperature(Decimal('91.5'), Decimal('45'), Decimal('30.01')),
-			delta=0.1,
+			delta=0.5,
 		)
 		self.assertAlmostEqual(
-			Decimal('52.8'),
+			Decimal('53.2'),
 			utils.calculate_wet_bulb_temperature(Decimal('55.7'), Decimal('85'), Decimal('29.41')),
-			delta=0.1,
+			delta=0.5,
 		)
-		# TODO: More assertions
 
 	def test_calculate_dew_point(self):
 		self.assertAlmostEqual(Decimal('64.4'), utils.calculate_dew_point(Decimal('83.1'), Decimal('54')), delta=0.1)
@@ -296,15 +298,19 @@ class TestIndexCalculation(TestCase):
 		self.assertAlmostEqual(Decimal('53.6'), utils.calculate_dew_point(Decimal('54.5'), Decimal('97')), delta=0.1)
 		self.assertAlmostEqual(Decimal('31.8'), utils.calculate_dew_point(Decimal('32.0'), Decimal('99')), delta=0.1)
 		self.assertAlmostEqual(Decimal('59.2'), utils.calculate_dew_point(Decimal('95.0'), Decimal('31')), delta=0.1)
-		# TODO: More assertions
+		self.assertAlmostEqual(Decimal('55.4'), utils.calculate_dew_point(Decimal('55.7'), Decimal('99')), delta=0.1)
+		self.assertAlmostEqual(Decimal('34.7'), utils.calculate_dew_point(Decimal('55.7'), Decimal('45')), delta=0.1)
 
 	def test_calculate_thw_index(self):
 		self.assertIsNone(utils.calculate_thw_index(Decimal('69.9'), Decimal('90'), Decimal('5')))
 		# TODO: More assertions
 
+	@skip('This calculation is not complete.')
 	def test_calculate_thsw_index(self):
-		# TODO: Write this
-		pass
+		self.assertEqual(
+			Decimal('0'),
+			utils.calculate_thsw_index(Decimal('36.5'), 52, 1274, 0),
+		)
 
 	def test_calculate_cooling_degree_days(self):
 		self.assertIsNone(utils.calculate_cooling_degree_days(Decimal('64.9')))
@@ -431,3 +437,44 @@ class TestHighTenMinuteWindAverageCalculation(TestCase):
 		self.assertEqual('SSW', direction)
 		self.assertEqual(start, datetime(2016, 4, 27, 12, 36))
 		self.assertEqual(end, datetime(2016, 4, 27, 12, 45))
+
+	def test_record_period_change(self):
+		avg, direction, start, end = utils.calculate_10_minute_wind_average(
+			[
+				(1, 'NW', datetime(2016, 4, 29, 6, 10), 10, ),
+				(5, 'NNW', datetime(2016, 4, 29, 6, 20), 10, ),
+				(2, 'N', datetime(2016, 4, 29, 6, 25), 5, ),
+				(1, 'NE', datetime(2016, 4, 29, 6, 30), 5, ),
+				(3, 'NE', datetime(2016, 4, 29, 6, 35), 5, ),
+				(1, 'N', datetime(2016, 4, 29, 6, 40), 5, ),
+				(2, 'NE', datetime(2016, 4, 29, 6, 42), 2, ),
+				(1, 'NNW', datetime(2016, 4, 29, 6, 44), 2, ),
+				(1, 'NNW', datetime(2016, 4, 29, 6, 46), 2, ),
+				(2, 'NNW', datetime(2016, 4, 29, 6, 48), 2, ),
+			]
+		)
+
+		self.assertEqual(Decimal('5'), avg)
+		self.assertEqual('NNW', direction)
+		self.assertEqual(start, datetime(2016, 4, 29, 6, 11))
+		self.assertEqual(end, datetime(2016, 4, 29, 6, 20))
+
+		avg, direction, start, end = utils.calculate_10_minute_wind_average(
+			[
+				(1, 'NW', datetime(2016, 4, 29, 6, 10), 10, ),
+				(2, 'NNW', datetime(2016, 4, 29, 6, 20), 10, ),
+				(2, 'N', datetime(2016, 4, 29, 6, 25), 5, ),
+				(1, 'NE', datetime(2016, 4, 29, 6, 30), 5, ),
+				(3, 'NE', datetime(2016, 4, 29, 6, 35), 5, ),
+				(1, 'N', datetime(2016, 4, 29, 6, 40), 5, ),
+				(2, 'NE', datetime(2016, 4, 29, 6, 42), 2, ),
+				(3, 'NNW', datetime(2016, 4, 29, 6, 44), 2, ),
+				(2, 'NNW', datetime(2016, 4, 29, 6, 46), 2, ),
+				(3, 'NNW', datetime(2016, 4, 29, 6, 48), 2, ),
+			]
+		)
+
+		self.assertEqual(Decimal('2.2'), avg)
+		self.assertEqual('NNW', direction)
+		self.assertEqual(start, datetime(2016, 4, 29, 6, 39))
+		self.assertEqual(end, datetime(2016, 4, 29, 6, 48))
