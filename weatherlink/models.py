@@ -56,6 +56,14 @@ WIND_DIRECTION_CODE_MAP = [
 	'NNW',  # 15
 ]
 
+BAROMETER_TREND_MAP = {
+	-60: 'Falling Rapidly',
+	-20: 'Falling Slowly',
+	0: 'Steady',
+	20: 'Rising Slowly',
+	60: 'Rising Rapidly',
+}
+
 STRAIGHT_NUMBER = int
 
 STRAIGHT_DECIMAL = decimal.Decimal
@@ -254,7 +262,7 @@ class DailySummary(RecordDict):
 		return cls(date=datetime.date(year, month, day), **kwargs)
 
 
-class InstantaneousRecord(RecordDict):
+class ArchiveIntervalRecord(RecordDict):
 	RECORD_FORMAT_WLK = (
 		'=b'  # '1'
 		'b'  # minutes in this record
@@ -441,3 +449,215 @@ class InstantaneousRecord(RecordDict):
 		record.date = convert_timestamp_to_datetime(record.timestamp)
 
 		return record
+
+
+class LoopRecord(RecordDict):
+	RECORD_LENGTH = 99
+
+	LOOP1_RECORD_TYPE = 0
+	LOOP2_RECORD_TYPE = 1
+
+	LOOP2_RECORD_FORMAT = (
+		'<3s'  # String 'LOO'
+		'b'  # barometer trend
+		'B'  # Should be 1 for "LOOP 2" (0 would indicate "LOOP 1")
+		'H'  # Unused, should be 0x7FFF
+		'H'  # Barometer in thousandths of inches of mercury
+		'h'  # Inside temperature in tenths of degrees Fahrenheit
+		'B'  # Inside humidity in whole percents
+		'h'  # Outside temperature in tenths of degrees Fahrenheit
+		'B'  # Wind speed in MPH
+		'B'  # Unused, should be 0xFF
+		'H'  # Wind direction in degrees, 0 = no wind, 1 = nearly N, 90 = E, 180 = S, 270 = W, 360 = N
+		'H'  # 10-minute wind average speed in tenths of MPH
+		'H'  # 2-minute wind average speed in tenths of MPH
+		'H'  # 10-minute wind gust speed in tenths of MPH
+		'H'  # 10-minute wind gust direction in degrees
+		'H'  # Unused, should be 0x7FFF
+		'H'  # Unused, should be 0x7FFF
+		'h'  # Dew point in whole degrees Fahrenheit
+		'B'  # Unused, should be 0xFF
+		'B'  # Outside humidity in whole percents
+		'B'  # Unused, should be 0xFF
+		'h'  # Heat index in whole degrees Fahrenheit
+		'h'  # Wind chill in whole degrees Fahrenheit
+		'h'  # THSW index in whole degrees Fahrenheit
+		'H'  # Rain rate in clicks/hour
+		'B'  # UV Index
+		'H'  # Solar radiation in watts per square meter
+		'H'  # Number of rain clicks this storm
+		'2x'  # Useless start date of this storm, which we don't care about
+		'H'  # Number of rain clicks today
+		'H'  # Number of rain clicks last 15 minutes
+		'H'  # Number of rain clicks last 1 hour
+		'H'  # Daily total evapotranspiration in thousandths of inches
+		'H'  # Number of rain clicks last 24 hours
+		'11x'  # Barometer calibration-related settings and readings
+		'B'  # Unused, should be 0xFF
+		'x'  # Unused field filled with undefined data
+		'6x'  # Information about what's displayed on the console graph, which we don't care about
+		'B'  # The minute within the hour, 0-59
+		'3x'  # Information about what's displayed on the console graph, which we don't care about
+		'H'  # Unused, should be 0x7FFF
+		'H'  # Unused, should be 0x7FFF
+		'H'  # Unused, should be 0x7FFF
+		'H'  # Unused, should be 0x7FFF
+		'H'  # Unused, should be 0x7FFF
+		'H'  # Unused, should be 0x7FFF
+		'c'  # Should be '\n'
+		'c'  # Should be '\r'
+		'H'  # Cyclic redundancy check (CRC)
+	)
+
+	LOOP2_RECORD_VERIFICATION_MAP_WLK = {
+		0: 'LOO',
+		2: 1,
+		3: 0x7FFF,
+		9: 0xFF,
+		15: 0x7FFF,
+		16: 0x7FFF,
+		18: 0xFF,
+		20: 0xFF,
+		33: 0xFF,
+		35: 0x7FFF,
+		36: 0x7FFF,
+		37: 0x7FFF,
+		38: 0x7FFF,
+		39: 0x7FFF,
+		40: 0x7FFF,
+		41: '\n',
+		42: '\r',
+	}
+
+	LOOP2_RECORD_SPECIAL_HANDLING = frozenset(LOOP2_RECORD_VERIFICATION_MAP_WLK.keys())
+
+	LOOP2_RECORD_ATTRIBUTE_MAP = (
+		('_special', STRAIGHT_NUMBER, None, ),
+		('barometer_trend', STRAIGHT_NUMBER, 80, ),
+		('_special', STRAIGHT_NUMBER, None, ),
+		('_special', STRAIGHT_NUMBER, None, ),
+		('barometric_pressure', THOUSANDTHS, DASH_ZERO, ),
+		('temperature_inside', TENTHS, DASH_LARGE, ),
+		('humidity_inside', STRAIGHT_NUMBER, DASH_SMALL, ),
+		('temperature_outside', TENTHS, DASH_LARGE, ),
+		('wind_speed', STRAIGHT_DECIMAL, DASH_SMALL, ),
+		('_special', STRAIGHT_NUMBER, None, ),
+		('wind_direction_degrees', STRAIGHT_NUMBER, DASH_ZERO, ),
+		('wind_speed_10_minute_average', TENTHS, DASH_ZERO, ),
+		('wind_speed_2_minute_average', TENTHS, DASH_ZERO, ),
+		('wind_speed_10_minute_gust', TENTHS, DASH_ZERO, ),
+		('wind_speed_10_minute_gust_direction_degrees', STRAIGHT_NUMBER, DASH_ZERO, ),
+		('_special', STRAIGHT_NUMBER, None, ),
+		('_special', STRAIGHT_NUMBER, None, ),
+		('dew_point', STRAIGHT_DECIMAL, None, ),
+		('_special', STRAIGHT_NUMBER, None, ),
+		('humidity_outside', STRAIGHT_NUMBER, DASH_SMALL, ),
+		('_special', STRAIGHT_NUMBER, None, ),
+		('heat_index', STRAIGHT_NUMBER, None, ),
+		('wind_chill', STRAIGHT_NUMBER, None, ),
+		('thsw_index', STRAIGHT_NUMBER, None, ),
+		('rain_rate_clicks', STRAIGHT_NUMBER, None, ),
+		('uv_index', TENTHS, DASH_SMALL, ),
+		('solar_radiation', STRAIGHT_NUMBER, DASH_LARGE, ),
+		('rain_clicks_this_storm', STRAIGHT_NUMBER, None, ),
+		('rain_clicks_today', STRAIGHT_NUMBER, None, ),
+		('rain_clicks_15_minutes', STRAIGHT_NUMBER, None, ),
+		('rain_clicks_1_hour', STRAIGHT_NUMBER, None, ),
+		('evapotranspiration', THOUSANDTHS, DASH_ZERO, ),
+		('rain_clicks_24_hours', STRAIGHT_NUMBER, None, ),
+		('_special', STRAIGHT_NUMBER, None),
+		('minute_in_hour', STRAIGHT_NUMBER, 60, ),
+	)
+
+	@classmethod
+	def load_loop_1_2_from_connection(cls, socket_file):
+		arguments = cls._get_loop_1_arguments(socket_file, True)
+		arguments.update(cls._get_loop_2_arguments(socket_file))
+		return cls(**arguments)
+
+	@classmethod
+	def load_loop_1_from_connection(cls, socket_file):
+		return cls(**cls._get_loop_1_arguments(socket_file))
+
+	@classmethod
+	def load_loop_2_from_connection(cls, socket_file):
+		return cls(**cls._get_loop_2_arguments(socket_file))
+
+	@classmethod
+	def _get_loop_1_arguments(cls, socket_file, unique_only=False):
+		arguments = {}
+
+		# TODO: LOOP 1
+
+		return arguments
+
+	@classmethod
+	def _get_loop_2_arguments(cls, socket_file):
+		data = socket_file.read(cls.RECORD_LENGTH)
+		if calculate_weatherlink_crc(data) != 0:
+			print 'CRC mismatch'
+
+		unpacked = struct.unpack_from(cls.LOOP2_RECORD_FORMAT, data)
+
+		for k, v in cls.LOOP2_RECORD_VERIFICATION_MAP_WLK.iteritems():
+			assert unpacked[k] == v
+
+		arguments = {}
+
+		last = len(cls.LOOP2_RECORD_ATTRIBUTE_MAP)
+		for i, v in enumerate(unpacked):
+			if (i < last and i not in cls.LOOP2_RECORD_VERIFICATION_MAP_WLK and
+						i not in cls.LOOP2_RECORD_SPECIAL_HANDLING):
+				k = cls.LOOP2_RECORD_ATTRIBUTE_MAP[i][0]
+				if v == cls.LOOP2_RECORD_ATTRIBUTE_MAP[i][2]:
+					arguments[k] = None
+				else:
+					arguments[k] = cls.LOOP2_RECORD_ATTRIBUTE_MAP[i][1](v)
+
+		return arguments
+
+
+WEATHERLINK_CRC_TABLE = (
+	0x0, 0x1021, 0x2042, 0x3063, 0x4084, 0x50a5, 0x60c6, 0x70e7,
+	0x8108, 0x9129, 0xa14a, 0xb16b, 0xc18c, 0xd1ad, 0xe1ce, 0xf1ef,
+	0x1231, 0x210, 0x3273, 0x2252, 0x52b5, 0x4294, 0x72f7, 0x62d6,
+	0x9339, 0x8318, 0xb37b, 0xa35a, 0xd3bd, 0xc39c, 0xf3ff, 0xe3de,
+	0x2462, 0x3443, 0x420, 0x1401, 0x64e6, 0x74c7, 0x44a4, 0x5485,
+	0xa56a, 0xb54b, 0x8528, 0x9509, 0xe5ee, 0xf5cf, 0xc5ac, 0xd58d,
+	0x3653, 0x2672, 0x1611, 0x630, 0x76d7, 0x66f6, 0x5695, 0x46b4,
+	0xb75b, 0xa77a, 0x9719, 0x8738, 0xf7df, 0xe7fe, 0xd79d, 0xc7bc,
+	0x48c4, 0x58e5, 0x6886, 0x78a7, 0x840, 0x1861, 0x2802, 0x3823,
+	0xc9cc, 0xd9ed, 0xe98e, 0xf9af, 0x8948, 0x9969, 0xa90a, 0xb92b,
+	0x5af5, 0x4ad4, 0x7ab7, 0x6a96, 0x1a71, 0xa50, 0x3a33, 0x2a12,
+	0xdbfd, 0xcbdc, 0xfbbf, 0xeb9e, 0x9b79, 0x8b58, 0xbb3b, 0xab1a,
+	0x6ca6, 0x7c87, 0x4ce4, 0x5cc5, 0x2c22, 0x3c03, 0xc60, 0x1c41,
+	0xedae, 0xfd8f, 0xcdec, 0xddcd, 0xad2a, 0xbd0b, 0x8d68, 0x9d49,
+	0x7e97, 0x6eb6, 0x5ed5, 0x4ef4, 0x3e13, 0x2e32, 0x1e51, 0xe70,
+	0xff9f, 0xefbe, 0xdfdd, 0xcffc, 0xbf1b, 0xaf3a, 0x9f59, 0x8f78,
+	0x9188, 0x81a9, 0xb1ca, 0xa1eb, 0xd10c, 0xc12d, 0xf14e, 0xe16f,
+	0x1080, 0xa1, 0x30c2, 0x20e3, 0x5004, 0x4025, 0x7046, 0x6067,
+	0x83b9, 0x9398, 0xa3fb, 0xb3da, 0xc33d, 0xd31c, 0xe37f, 0xf35e,
+	0x2b1, 0x1290, 0x22f3, 0x32d2, 0x4235, 0x5214, 0x6277, 0x7256,
+	0xb5ea, 0xa5cb, 0x95a8, 0x8589, 0xf56e, 0xe54f, 0xd52c, 0xc50d,
+	0x34e2, 0x24c3, 0x14a0, 0x481, 0x7466, 0x6447, 0x5424, 0x4405,
+	0xa7db, 0xb7fa, 0x8799, 0x97b8, 0xe75f, 0xf77e, 0xc71d, 0xd73c,
+	0x26d3, 0x36f2, 0x691, 0x16b0, 0x6657, 0x7676, 0x4615, 0x5634,
+	0xd94c, 0xc96d, 0xf90e, 0xe92f, 0x99c8, 0x89e9, 0xb98a, 0xa9ab,
+	0x5844, 0x4865, 0x7806, 0x6827, 0x18c0, 0x8e1, 0x3882, 0x28a3,
+	0xcb7d, 0xdb5c, 0xeb3f, 0xfb1e, 0x8bf9, 0x9bd8, 0xabbb, 0xbb9a,
+	0x4a75, 0x5a54, 0x6a37, 0x7a16, 0xaf1, 0x1ad0, 0x2ab3, 0x3a92,
+	0xfd2e, 0xed0f, 0xdd6c, 0xcd4d, 0xbdaa, 0xad8b, 0x9de8, 0x8dc9,
+	0x7c26, 0x6c07, 0x5c64, 0x4c45, 0x3ca2, 0x2c83, 0x1ce0, 0xcc1,
+	0xef1f, 0xff3e, 0xcf5d, 0xdf7c, 0xaf9b, 0xbfba, 0x8fd9, 0x9ff8,
+	0x6e17, 0x7e36, 0x4e55, 0x5e74, 0x2e93, 0x3eb2, 0xed1, 0x1ef0,
+)
+
+
+def calculate_weatherlink_crc(data_bytes):
+	crc = 0
+	cast_with_ord = isinstance(data_bytes, basestring)
+	for i, byte in enumerate(data_bytes):
+		if cast_with_ord:
+			byte = ord(byte)
+		crc = WEATHERLINK_CRC_TABLE[((crc >> 8) & 0xFF) ^ byte] ^ ((crc << 8) & 0xFF00)
+	return crc

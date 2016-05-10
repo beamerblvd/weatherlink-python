@@ -165,7 +165,7 @@ class MySQLExporter(object):
 		try:
 			self.disconnect()
 		except:
-			# Only allow this exception to be raised if an exception did not triger the context manager exit
+			# Only allow this exception to be raised if an exception did not trigger the context manager exit
 			if not exception_type:
 				raise
 
@@ -665,6 +665,7 @@ class MySQLExporter(object):
 
 				# This is the start of a new rain event.
 				last_rain = start_record[0]
+				last_record = start_record[0]
 				event_total_rain = start_record[1]
 				event_rain_rates = [start_record[2]]
 				event_max_rain_rate = event_rain_rates[0]
@@ -677,6 +678,8 @@ class MySQLExporter(object):
 					[start_record[0]],
 				)
 				for (timestamp_station, rain_total, rain_rate_high) in cursor:
+					last_record = timestamp_station
+
 					if (timestamp_station - last_rain).total_seconds() > THREE_HOURS_IN_SECONDS:
 						break
 
@@ -697,8 +700,7 @@ class MySQLExporter(object):
 					# This just means there were no remaining rows
 					pass
 
-				delta_now = datetime.datetime.now(self.station_time_zone).replace(tzinfo=None) - last_rain
-				if delta_now.total_seconds() < THREE_HOURS_IN_SECONDS:
+				if (last_record - last_rain).total_seconds() < THREE_HOURS_IN_SECONDS:
 					# This is an ongoing rain event, so don't record the end yet.
 					last_rain = None
 					ongoing_rain_events = 1

@@ -5,7 +5,7 @@ import collections
 from weatherlink.models import (
 	Header,
 	DailySummary,
-	InstantaneousRecord,
+	ArchiveIntervalRecord,
 )
 
 
@@ -44,6 +44,6 @@ class Importer(object):
 						if r == 0:
 							self.daily_summaries[day] = DailySummary.load_from_wlk(file_handle, self.year, self.month, day)
 						else:
-							record = InstantaneousRecord.load_from_wlk(file_handle, self.year, self.month, day)
+							record = ArchiveIntervalRecord.load_from_wlk(file_handle, self.year, self.month, day)
 							self.records.append(record)
 							self.daily_records[day].append(record)

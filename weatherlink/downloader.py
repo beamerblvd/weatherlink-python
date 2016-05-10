@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import requests
 
 from weatherlink.models import (
-	InstantaneousRecord,
+	ArchiveIntervalRecord,
 	convert_datetime_to_timestamp,
 )
 
@@ -81,7 +81,7 @@ class Downloader(object):
 		self.records = []
 
 		for i in range(0, self.record_count):
-			record = InstantaneousRecord.load_from_download(download_response_handle, self.record_minute_span)
+			record = ArchiveIntervalRecord.load_from_download(download_response_handle, self.record_minute_span)
 			if not record:
 				break
 
