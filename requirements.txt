@@ -1,3 +1,4 @@
+https://pypi.python.org/packages/66/18/bbdbe6a09b2dd4517913a8cd7aed246dc78ae11a9ed108b88e6695819ee4/enum34-1.1.5.tar.gz#md5=4c4ee33a974d5fa97e4f6e7bd56dddb7
 https://pypi.python.org/packages/6c/4a/eb896a5629813b56f5a79cc6b7f5551598f27f1eea6c00c68b47541c1501/pytz-2016.4.zip#md5=eeb649e63d56fac3566a3fefaa35c7fa
 https://pypi.python.org/packages/f9/6d/07c44fb1ebe04d069459a189e7dab9e4abfe9432adcd4477367c25332748/requests-2.9.1.tar.gz#md5=0b7f480d19012ec52bab78292efd976d
 https://cdn.mysql.com/Downloads/Connector-Python/mysql-connector-python-2.0.4.zip#md5=3df394d89300db95163f17c843ef49df

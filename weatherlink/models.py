@@ -2,6 +2,7 @@ from __future__ import absolute_import
 
 import datetime
 import decimal
+import enum
 import struct
 
 """
@@ -14,28 +15,6 @@ DASH_LARGE = 32767
 DASH_LARGE_NEGATIVE = -32768
 DASH_ZERO = 0
 DASH_SMALL = 255
-
-RAIN_COLLECTOR_TYPE_0_1_IN = 0x0000
-RAIN_COLLECTOR_TYPE_0_01_IN = 0x1000
-RAIN_COLLECTOR_TYPE_0_2_MM = 0x2000
-RAIN_COLLECTOR_TYPE_1_0_MM = 0x3000
-RAIN_COLLECTOR_TYPE_0_1_MM = 0x6000
-
-RAIN_COLLECTOR_TYPE_AMOUNT_TO_INCHES = {
-	RAIN_COLLECTOR_TYPE_0_1_IN: decimal.Decimal('0.1'),
-	RAIN_COLLECTOR_TYPE_0_01_IN: decimal.Decimal('0.01'),
-	RAIN_COLLECTOR_TYPE_0_2_MM: decimal.Decimal('0.00787402'),
-	RAIN_COLLECTOR_TYPE_1_0_MM: decimal.Decimal('0.0393701'),
-	RAIN_COLLECTOR_TYPE_0_1_MM: decimal.Decimal('0.00393701'),
-}
-
-RAIN_COLLECTOR_TYPE_AMOUNT_TO_CENTIMETERS = {
-	RAIN_COLLECTOR_TYPE_0_1_IN: decimal.Decimal('0.254'),
-	RAIN_COLLECTOR_TYPE_0_01_IN: decimal.Decimal('0.0254'),
-	RAIN_COLLECTOR_TYPE_0_2_MM: decimal.Decimal('0.02'),
-	RAIN_COLLECTOR_TYPE_1_0_MM: decimal.Decimal('0.1'),
-	RAIN_COLLECTOR_TYPE_0_1_MM: decimal.Decimal('0.01'),
-}
 
 WIND_DIRECTION_CODE_MAP = [
 	'N',  # 0
@@ -56,14 +35,6 @@ WIND_DIRECTION_CODE_MAP = [
 	'NNW',  # 15
 ]
 
-BAROMETER_TREND_MAP = {
-	-60: 'Falling Rapidly',
-	-20: 'Falling Slowly',
-	0: 'Steady',
-	20: 'Rising Slowly',
-	60: 'Rising Rapidly',
-}
-
 STRAIGHT_NUMBER = int
 
 STRAIGHT_DECIMAL = decimal.Decimal
@@ -76,6 +47,8 @@ HUNDREDTHS = lambda x: x * _HUNDREDTHS
 
 _THOUSANDTHS = decimal.Decimal('0.001')
 THOUSANDTHS = lambda x: x * _THOUSANDTHS
+
+INCHES_PER_CENTIMETER = decimal.Decimal('0.393701')
 
 
 def convert_datetime_to_timestamp(d):
@@ -95,6 +68,91 @@ def convert_timestamp_to_datetime(timestamp):
 	minute = time_part - (hour * 100)
 
 	return datetime.datetime(year, month, day, hour, minute)
+
+
+class BarometricTrend(enum.Enum):
+	falling_rapidly = -60
+	falling_slowly = -20
+	steady = 0
+	rising_slowly = 20
+	rising_rapidly = 60
+
+
+class WindDirection(enum.Enum):
+	N = 0
+	NNE = 1
+	NE = 2
+	ENE = 3
+	E = 4
+	ESE = 5
+	SE = 6
+	SSE = 7
+	S = 8
+	SSW = 9
+	SW = 10
+	WSW = 11
+	W = 12
+	WNW = 13
+	NW = 14
+	NNW = 15
+
+	@staticmethod
+	def from_degrees(degrees):
+		if degrees < 1 or degrees > 360:
+			return None
+		return WindDirection._FROM_DEGREE_MAP[degrees]
+WindDirection._FROM_DEGREE_MAP = {
+	350: WindDirection.N, 351: WindDirection.N, 352: WindDirection.N, 353: WindDirection.N, 354: WindDirection.N, 355: WindDirection.N, 356: WindDirection.N, 357: WindDirection.N, 358: WindDirection.N, 359: WindDirection.N, 360: WindDirection.N, 1: WindDirection.N, 2: WindDirection.N, 3: WindDirection.N, 4: WindDirection.N, 5: WindDirection.N, 6: WindDirection.N, 7: WindDirection.N, 8: WindDirection.N, 9: WindDirection.N, 10: WindDirection.N, 11: WindDirection.N,  # noqa
+	12: WindDirection.NNE, 13: WindDirection.NNE, 14: WindDirection.NNE, 15: WindDirection.NNE, 16: WindDirection.NNE, 17: WindDirection.NNE, 18: WindDirection.NNE, 19: WindDirection.NNE, 20: WindDirection.NNE, 21: WindDirection.NNE, 22: WindDirection.NNE, 23: WindDirection.NNE, 24: WindDirection.NNE, 25: WindDirection.NNE, 26: WindDirection.NNE, 27: WindDirection.NNE, 28: WindDirection.NNE, 29: WindDirection.NNE, 30: WindDirection.NNE, 31: WindDirection.NNE, 32: WindDirection.NNE, 33: WindDirection.NNE, 34: WindDirection.NNE,  # noqa
+	35: WindDirection.NE, 36: WindDirection.NE, 37: WindDirection.NE, 38: WindDirection.NE, 39: WindDirection.NE, 40: WindDirection.NE, 41: WindDirection.NE, 42: WindDirection.NE, 43: WindDirection.NE, 44: WindDirection.NE, 45: WindDirection.NE, 46: WindDirection.NE, 47: WindDirection.NE, 48: WindDirection.NE, 49: WindDirection.NE, 50: WindDirection.NE, 51: WindDirection.NE, 52: WindDirection.NE, 53: WindDirection.NE, 54: WindDirection.NE, 55: WindDirection.NE, 56: WindDirection.NE,  # noqa
+	57: WindDirection.ENE, 58: WindDirection.ENE, 59: WindDirection.ENE, 60: WindDirection.ENE, 61: WindDirection.ENE, 62: WindDirection.ENE, 63: WindDirection.ENE, 64: WindDirection.ENE, 65: WindDirection.ENE, 66: WindDirection.ENE, 67: WindDirection.ENE, 68: WindDirection.ENE, 69: WindDirection.ENE, 70: WindDirection.ENE, 71: WindDirection.ENE, 72: WindDirection.ENE, 73: WindDirection.ENE, 74: WindDirection.ENE, 75: WindDirection.ENE, 76: WindDirection.ENE, 77: WindDirection.ENE, 78: WindDirection.ENE, 79: WindDirection.ENE,  # noqa
+	80: WindDirection.E, 81: WindDirection.E, 82: WindDirection.E, 83: WindDirection.E, 84: WindDirection.E, 85: WindDirection.E, 86: WindDirection.E, 87: WindDirection.E, 88: WindDirection.E, 89: WindDirection.E, 90: WindDirection.E, 91: WindDirection.E, 92: WindDirection.E, 93: WindDirection.E, 94: WindDirection.E, 95: WindDirection.E, 96: WindDirection.E, 97: WindDirection.E, 98: WindDirection.E, 99: WindDirection.E, 100: WindDirection.E, 101: WindDirection.E,  # noqa
+	102: WindDirection.ESE, 103: WindDirection.ESE, 104: WindDirection.ESE, 105: WindDirection.ESE, 106: WindDirection.ESE, 107: WindDirection.ESE, 108: WindDirection.ESE, 109: WindDirection.ESE, 110: WindDirection.ESE, 111: WindDirection.ESE, 112: WindDirection.ESE, 113: WindDirection.ESE, 114: WindDirection.ESE, 115: WindDirection.ESE, 116: WindDirection.ESE, 117: WindDirection.ESE, 118: WindDirection.ESE, 119: WindDirection.ESE, 120: WindDirection.ESE, 121: WindDirection.ESE, 122: WindDirection.ESE, 123: WindDirection.ESE, 124: WindDirection.ESE,  # noqa
+	125: WindDirection.SE, 126: WindDirection.SE, 127: WindDirection.SE, 128: WindDirection.SE, 129: WindDirection.SE, 130: WindDirection.SE, 131: WindDirection.SE, 132: WindDirection.SE, 133: WindDirection.SE, 134: WindDirection.SE, 135: WindDirection.SE, 136: WindDirection.SE, 137: WindDirection.SE, 138: WindDirection.SE, 139: WindDirection.SE, 140: WindDirection.SE, 141: WindDirection.SE, 142: WindDirection.SE, 143: WindDirection.SE, 144: WindDirection.SE, 145: WindDirection.SE, 146: WindDirection.SE,  # noqa
+	147: WindDirection.SSE, 148: WindDirection.SSE, 149: WindDirection.SSE, 150: WindDirection.SSE, 151: WindDirection.SSE, 152: WindDirection.SSE, 153: WindDirection.SSE, 154: WindDirection.SSE, 155: WindDirection.SSE, 156: WindDirection.SSE, 157: WindDirection.SSE, 158: WindDirection.SSE, 159: WindDirection.SSE, 160: WindDirection.SSE, 161: WindDirection.SSE, 162: WindDirection.SSE, 163: WindDirection.SSE, 164: WindDirection.SSE, 165: WindDirection.SSE, 166: WindDirection.SSE, 167: WindDirection.SSE, 168: WindDirection.SSE, 169: WindDirection.SSE,  # noqa
+	170: WindDirection.S, 171: WindDirection.S, 172: WindDirection.S, 173: WindDirection.S, 174: WindDirection.S, 175: WindDirection.S, 176: WindDirection.S, 177: WindDirection.S, 178: WindDirection.S, 179: WindDirection.S, 180: WindDirection.S, 181: WindDirection.S, 182: WindDirection.S, 183: WindDirection.S, 184: WindDirection.S, 185: WindDirection.S, 186: WindDirection.S, 187: WindDirection.S, 188: WindDirection.S, 189: WindDirection.S, 190: WindDirection.S, 191: WindDirection.S,  # noqa
+	192: WindDirection.SSW, 193: WindDirection.SSW, 194: WindDirection.SSW, 195: WindDirection.SSW, 196: WindDirection.SSW, 197: WindDirection.SSW, 198: WindDirection.SSW, 199: WindDirection.SSW, 200: WindDirection.SSW, 201: WindDirection.SSW, 202: WindDirection.SSW, 203: WindDirection.SSW, 204: WindDirection.SSW, 205: WindDirection.SSW, 206: WindDirection.SSW, 207: WindDirection.SSW, 208: WindDirection.SSW, 209: WindDirection.SSW, 210: WindDirection.SSW, 211: WindDirection.SSW, 212: WindDirection.SSW, 213: WindDirection.SSW, 214: WindDirection.SSW,  # noqa
+	215: WindDirection.SW, 216: WindDirection.SW, 217: WindDirection.SW, 218: WindDirection.SW, 219: WindDirection.SW, 220: WindDirection.SW, 221: WindDirection.SW, 222: WindDirection.SW, 223: WindDirection.SW, 224: WindDirection.SW, 225: WindDirection.SW, 226: WindDirection.SW, 227: WindDirection.SW, 228: WindDirection.SW, 229: WindDirection.SW, 230: WindDirection.SW, 231: WindDirection.SW, 232: WindDirection.SW, 233: WindDirection.SW, 234: WindDirection.SW, 235: WindDirection.SW, 236: WindDirection.SW,  # noqa
+	237: WindDirection.WSW, 238: WindDirection.WSW, 239: WindDirection.WSW, 240: WindDirection.WSW, 241: WindDirection.WSW, 242: WindDirection.WSW, 243: WindDirection.WSW, 244: WindDirection.WSW, 245: WindDirection.WSW, 246: WindDirection.WSW, 247: WindDirection.WSW, 248: WindDirection.WSW, 249: WindDirection.WSW, 250: WindDirection.WSW, 251: WindDirection.WSW, 252: WindDirection.WSW, 253: WindDirection.WSW, 254: WindDirection.WSW, 255: WindDirection.WSW, 256: WindDirection.WSW, 257: WindDirection.WSW, 258: WindDirection.WSW, 259: WindDirection.WSW,  # noqa
+	260: WindDirection.W, 261: WindDirection.W, 262: WindDirection.W, 263: WindDirection.W, 264: WindDirection.W, 265: WindDirection.W, 266: WindDirection.W, 267: WindDirection.W, 268: WindDirection.W, 269: WindDirection.W, 270: WindDirection.W, 271: WindDirection.W, 272: WindDirection.W, 273: WindDirection.W, 274: WindDirection.W, 275: WindDirection.W, 276: WindDirection.W, 277: WindDirection.W, 278: WindDirection.W, 279: WindDirection.W, 280: WindDirection.W, 281: WindDirection.W,  # noqa
+	282: WindDirection.WNW, 283: WindDirection.WNW, 284: WindDirection.WNW, 285: WindDirection.WNW, 286: WindDirection.WNW, 287: WindDirection.WNW, 288: WindDirection.WNW, 289: WindDirection.WNW, 290: WindDirection.WNW, 291: WindDirection.WNW, 292: WindDirection.WNW, 293: WindDirection.WNW, 294: WindDirection.WNW, 295: WindDirection.WNW, 296: WindDirection.WNW, 297: WindDirection.WNW, 298: WindDirection.WNW, 299: WindDirection.WNW, 300: WindDirection.WNW, 301: WindDirection.WNW, 302: WindDirection.WNW, 303: WindDirection.WNW, 304: WindDirection.WNW,  # noqa
+	305: WindDirection.NW, 306: WindDirection.NW, 307: WindDirection.NW, 308: WindDirection.NW, 309: WindDirection.NW, 310: WindDirection.NW, 311: WindDirection.NW, 312: WindDirection.NW, 313: WindDirection.NW, 314: WindDirection.NW, 315: WindDirection.NW, 316: WindDirection.NW, 317: WindDirection.NW, 318: WindDirection.NW, 319: WindDirection.NW, 320: WindDirection.NW, 321: WindDirection.NW, 322: WindDirection.NW, 323: WindDirection.NW, 324: WindDirection.NW, 325: WindDirection.NW, 326: WindDirection.NW,  # noqa
+	327: WindDirection.NNW, 328: WindDirection.NNW, 329: WindDirection.NNW, 330: WindDirection.NNW, 331: WindDirection.NNW, 332: WindDirection.NNW, 333: WindDirection.NNW, 334: WindDirection.NNW, 335: WindDirection.NNW, 336: WindDirection.NNW, 337: WindDirection.NNW, 338: WindDirection.NNW, 339: WindDirection.NNW, 340: WindDirection.NNW, 341: WindDirection.NNW, 342: WindDirection.NNW, 343: WindDirection.NNW, 344: WindDirection.NNW, 345: WindDirection.NNW, 346: WindDirection.NNW, 347: WindDirection.NNW, 348: WindDirection.NNW, 349: WindDirection.NNW,  # noqa
+}
+
+
+class RainCollectorType(enum.Enum):
+	pass
+
+
+class RainCollectorTypeSerial(RainCollectorType):
+	inches_0_01 = 0x00
+	millimeters_0_2 = 0x10
+	millimeters_0_1 = 0x20
+RainCollectorTypeSerial.inches_0_01.clicks_to_inches = lambda c: c * _HUNDREDTHS
+RainCollectorTypeSerial.inches_0_01.clicks_to_centimeters = lambda c: c / INCHES_PER_CENTIMETER * _HUNDREDTHS
+RainCollectorTypeSerial.millimeters_0_2.clicks_to_inches = lambda c: c * _HUNDREDTHS * INCHES_PER_CENTIMETER * 2
+RainCollectorTypeSerial.millimeters_0_2.clicks_to_centimeters = lambda c: c * _HUNDREDTHS * 2
+RainCollectorTypeSerial.millimeters_0_1.clicks_to_inches = lambda c: c * _HUNDREDTHS * INCHES_PER_CENTIMETER
+RainCollectorTypeSerial.millimeters_0_1.clicks_to_centimeters = lambda c: c * _HUNDREDTHS
+
+
+class RainCollectorTypeDatabase(RainCollectorType):
+	inches_0_1 = 0x0000
+	inches_0_01 = 0x1000
+	millimeters_0_2 = 0x2000
+	millimeters_1_0 = 0x3000
+	millimeters_0_1 = 0x6000
+RainCollectorTypeDatabase.inches_0_1.clicks_to_inches = lambda c: _TENTHS * c
+RainCollectorTypeDatabase.inches_0_1.clicks_to_centimeters = lambda c: c / INCHES_PER_CENTIMETER * _TENTHS
+RainCollectorTypeDatabase.inches_0_01.clicks_to_inches = lambda c: _HUNDREDTHS * c
+RainCollectorTypeDatabase.inches_0_01.clicks_to_centimeters = lambda c: c / INCHES_PER_CENTIMETER * _HUNDREDTHS
+RainCollectorTypeDatabase.millimeters_0_2.clicks_to_inches = lambda c: _HUNDREDTHS * INCHES_PER_CENTIMETER * c * 2
+RainCollectorTypeDatabase.millimeters_0_2.clicks_to_centimeters = lambda c: c * _HUNDREDTHS * 2
+RainCollectorTypeDatabase.millimeters_1_0.clicks_to_inches = lambda c: _TENTHS * INCHES_PER_CENTIMETER * c
+RainCollectorTypeDatabase.millimeters_1_0.clicks_to_centimeters = lambda c: c * _TENTHS
+RainCollectorTypeDatabase.millimeters_0_1.clicks_to_inches = lambda c: _HUNDREDTHS * INCHES_PER_CENTIMETER * c
+RainCollectorTypeDatabase.millimeters_0_1.clicks_to_centimeters = lambda c: c * _HUNDREDTHS
 
 
 class RecordDict(dict):
@@ -397,13 +455,15 @@ class ArchiveIntervalRecord(RecordDict):
 		rain_clicks = rain_code & 0x0FFF
 		rain_rate_clicks = arguments[11]
 
-		record.rain_collector_type = rain_collector_type
+		record.rain_collector_type = RainCollectorTypeDatabase(rain_collector_type)
 		record.rain_amount_clicks = rain_clicks
 		record.rain_rate_clicks = rain_rate_clicks
-		record.rain_amount = RAIN_COLLECTOR_TYPE_AMOUNT_TO_INCHES[rain_collector_type] * rain_clicks
-		record.rain_rate = RAIN_COLLECTOR_TYPE_AMOUNT_TO_INCHES[rain_collector_type] * rain_rate_clicks
+		record.rain_amount = record.rain_collector_type.clicks_to_inches(rain_clicks)
+		record.rain_rate = record.rain_collector_type.clicks_to_inches(rain_rate_clicks)
 
-		record.date = datetime.datetime(year, month, day, 0, 0) + datetime.timedelta(minutes=record.minutes_past_midnight)
+		record.date = (
+			datetime.datetime(year, month, day, 0, 0) + datetime.timedelta(minutes=record.minutes_past_midnight)
+		)
 		record.timestamp = convert_datetime_to_timestamp(record.date)
 
 		return record
@@ -433,17 +493,14 @@ class ArchiveIntervalRecord(RecordDict):
 
 		record.minutes_covered = minutes_covered
 
-		# The online download does not contain this information, unfortunately
-		rain_collector_type = RAIN_COLLECTOR_TYPE_0_01_IN
-
 		rain_clicks = arguments[5]
 		rain_rate_clicks = arguments[6]
 
-		record.rain_collector_type = rain_collector_type
+		record.rain_collector_type = RainCollectorTypeSerial.inches_0_01
 		record.rain_amount_clicks = rain_clicks
 		record.rain_rate_clicks = rain_rate_clicks
-		record.rain_amount = RAIN_COLLECTOR_TYPE_AMOUNT_TO_INCHES[rain_collector_type] * rain_clicks
-		record.rain_rate = RAIN_COLLECTOR_TYPE_AMOUNT_TO_INCHES[rain_collector_type] * rain_rate_clicks
+		record.rain_amount = record.rain_collector_type.clicks_to_inches(rain_clicks)
+		record.rain_rate = record.rain_collector_type.clicks_to_inches(rain_rate_clicks)
 
 		record.timestamp = (arguments[0] << 16) + arguments[1]
 		record.date = convert_timestamp_to_datetime(record.timestamp)
@@ -533,7 +590,7 @@ class LoopRecord(RecordDict):
 
 	LOOP2_RECORD_ATTRIBUTE_MAP = (
 		('_special', STRAIGHT_NUMBER, None, ),
-		('barometer_trend', STRAIGHT_NUMBER, 80, ),
+		('barometric_trend', STRAIGHT_NUMBER, 80, ),
 		('_special', STRAIGHT_NUMBER, None, ),
 		('_special', STRAIGHT_NUMBER, None, ),
 		('barometric_pressure', THOUSANDTHS, DASH_ZERO, ),
@@ -549,13 +606,13 @@ class LoopRecord(RecordDict):
 		('wind_speed_10_minute_gust_direction_degrees', STRAIGHT_NUMBER, DASH_ZERO, ),
 		('_special', STRAIGHT_NUMBER, None, ),
 		('_special', STRAIGHT_NUMBER, None, ),
-		('dew_point', STRAIGHT_DECIMAL, None, ),
+		('dew_point', STRAIGHT_DECIMAL, DASH_SMALL, ),
 		('_special', STRAIGHT_NUMBER, None, ),
 		('humidity_outside', STRAIGHT_NUMBER, DASH_SMALL, ),
 		('_special', STRAIGHT_NUMBER, None, ),
-		('heat_index', STRAIGHT_NUMBER, None, ),
-		('wind_chill', STRAIGHT_NUMBER, None, ),
-		('thsw_index', STRAIGHT_NUMBER, None, ),
+		('heat_index', STRAIGHT_NUMBER, DASH_SMALL, ),
+		('wind_chill', STRAIGHT_NUMBER, DASH_SMALL, ),
+		('thsw_index', STRAIGHT_NUMBER, DASH_SMALL, ),
 		('rain_rate_clicks', STRAIGHT_NUMBER, None, ),
 		('uv_index', TENTHS, DASH_SMALL, ),
 		('solar_radiation', STRAIGHT_NUMBER, DASH_LARGE, ),
@@ -567,6 +624,20 @@ class LoopRecord(RecordDict):
 		('rain_clicks_24_hours', STRAIGHT_NUMBER, None, ),
 		('_special', STRAIGHT_NUMBER, None),
 		('minute_in_hour', STRAIGHT_NUMBER, 60, ),
+	)
+
+	LOOP_WIND_DIRECTION_SPECIAL = (
+		('wind_direction_degrees', 'wind_direction', ),
+		('wind_speed_10_minute_gust_direction_degrees', 'wind_speed_10_minute_gust_direction', ),
+	)
+
+	LOOP_RAIN_AMOUNT_SPECIAL = (
+		('rain_rate_clicks', 'rain_rate', ),
+		('rain_clicks_this_storm', 'rain_amount_this_storm', ),
+		('rain_clicks_today', 'rain_amount_today', ),
+		('rain_clicks_15_minutes', 'rain_amount_15_minutes', ),
+		('rain_clicks_1_hour', 'rain_amount_1_hour', ),
+		('rain_clicks_24_hours', 'rain_amount_24_hours', ),
 	)
 
 	@classmethod
@@ -585,24 +656,18 @@ class LoopRecord(RecordDict):
 
 	@classmethod
 	def _get_loop_1_arguments(cls, socket_file, unique_only=False):
-		arguments = {}
-
-		# TODO: LOOP 1
-
-		return arguments
+		raise NotImplementedError()
 
 	@classmethod
 	def _get_loop_2_arguments(cls, socket_file):
 		data = socket_file.read(cls.RECORD_LENGTH)
-		if calculate_weatherlink_crc(data) != 0:
-			print 'CRC mismatch'
 
 		unpacked = struct.unpack_from(cls.LOOP2_RECORD_FORMAT, data)
 
 		for k, v in cls.LOOP2_RECORD_VERIFICATION_MAP_WLK.iteritems():
 			assert unpacked[k] == v
 
-		arguments = {}
+		arguments = {'crc_match': calculate_weatherlink_crc(data) == 0, 'record_type': 2}
 
 		last = len(cls.LOOP2_RECORD_ATTRIBUTE_MAP)
 		for i, v in enumerate(unpacked):
@@ -614,7 +679,31 @@ class LoopRecord(RecordDict):
 				else:
 					arguments[k] = cls.LOOP2_RECORD_ATTRIBUTE_MAP[i][1](v)
 
+		cls._post_process_arguments(arguments)
+
 		return arguments
+
+	@classmethod
+	def _post_process_arguments(cls, arguments):
+		# The online download does not contain this information, unfortunately
+		rain_collector_type = RainCollectorTypeSerial.inches_0_01
+
+		try:
+			arguments['barometric_trend'] = BarometricTrend(arguments['barometric_trend'])
+		except ValueError:
+			arguments['barometric_trend'] = None
+
+		for k1, k2 in cls.LOOP_WIND_DIRECTION_SPECIAL:
+			if arguments[k1]:
+				arguments[k2] = WindDirection.from_degrees(arguments[k1])
+			else:
+				arguments[k2] = None
+
+		for k1, k2 in cls.LOOP_RAIN_AMOUNT_SPECIAL:
+			if arguments[k1]:
+				arguments[k2] = rain_collector_type.clicks_to_inches(arguments[k1])
+			else:
+				arguments[k2] = None
 
 
 WEATHERLINK_CRC_TABLE = (

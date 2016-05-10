@@ -7,6 +7,7 @@ from weatherlink import __version__
 packages = find_packages(exclude=['tests', 'tests.*'])
 
 install_requirements = [
+	'enum34>=1.1.5',
 	'pytz>=2016.4',
 	'requests==2.9.1',
 	'mysql-connector-python>=2.0.4',
