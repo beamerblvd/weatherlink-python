@@ -1,17 +1,21 @@
+"""
+This module contains classes for continuously polling a Vantage Pro2 weather station for its LOOP1 or LOOP2 (or both)
+record packets.
+"""
+
 from __future__ import absolute_import
 
-import curses.ascii
-import socket
 import threading
 
 from weatherlink.models import LoopRecord
+from weatherlink.serial import (
+	ConfigurationSettingMixin,
+	SerialCommunicator,
+	SerialIPCommunicator,
+)
 
 
-class Poller(object):
-	DEFAULT_PORT_NUMBER = 22222
-
-	ACK_BYTE = chr(curses.ascii.ACK)
-
+class Poller(ConfigurationSettingMixin, SerialCommunicator):
 	POLL_INSTRUCTION = 'LPS %s %s\n'
 
 	# Set poller.packet_type to one of these (defaults to LOOP2), or set it to
@@ -19,49 +23,11 @@ class Poller(object):
 	PACKET_TYPE_LOOP1 = 1
 	PACKET_TYPE_LOOP2 = 2
 
-	def __init__(self, host, port=DEFAULT_PORT_NUMBER):
-		self.host = host
-		self.port = port
+	def __init__(self, *args, **kwargs):
+		super(Poller, self).__init__(*args, **kwargs)
 
 		self.packet_type = LoopRecord.PACKET_TYPE_LOOP2
-
-		self._socket = None
 		self._stop_event = None
-
-	def connect(self):
-		if self._socket:
-			raise ValueError('Cannot connect when already connected.')
-
-		try:
-			self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-			self._socket.connect((self.host, self.port, ))
-		except:
-			if self._socket:
-				try:
-					self.disconnect()
-				except IOError:
-					pass
-			raise
-
-	def disconnect(self):
-		if not self._socket:
-			raise ValueError('Cannot disconnect when not connected.')
-
-		try:
-			self._socket.close()
-		finally:
-			self._socket = None
-
-	def __enter__(self):
-		self.connect()
-
-	def __exit__(self, exception_type, exception_value, exception_traceback):
-		try:
-			self.disconnect()
-		except:
-			# Only allow this exception to be raised if an exception did not trigger the context manager exit
-			if not exception_type:
-				raise
 
 	def poll(self, num_packets):
 		self._send_poll_instruction(num_packets)
@@ -86,27 +52,23 @@ class Poller(object):
 		self._stop_event.set()
 
 	def _send_poll_instruction(self, num_packets):
-		self._socket.sendall(self.POLL_INSTRUCTION % (self.packet_type, num_packets, ))
-
-		ack = self._socket.recv(1)
-		if ack != self.ACK_BYTE:
-			raise IOError('Expected ACK response 0x06, received %s instead.' % ack)
+		self._send_instruction(self.POLL_INSTRUCTION % (self.packet_type, num_packets, ))
 
 	def _receive_loop_packets(self, num_packets, callback=None):
 		packets = []
 
-		with self._socket.makefile() as socket_file:
+		with self._get_file_handle() as handle:
 			for i in range(0, num_packets):
 				if self._stop_event and self._stop_event.is_set():
-					self._socket.sendall('\r')
+					self._send_data('\r')
 					return
 
 				if self.packet_type == self.PACKET_TYPE_LOOP1 | self.PACKET_TYPE_LOOP2:
-					packet = LoopRecord.load_loop_1_2_from_connection(socket_file)
+					packet = LoopRecord.load_loop_1_2_from_connection(handle)
 				elif self.packet_type == self.PACKET_TYPE_LOOP1:
-					packet = LoopRecord.load_loop_1_from_connection(socket_file)
+					packet = LoopRecord.load_loop_1_from_connection(handle)
 				else:
-					packet = LoopRecord.load_loop_2_from_connection(socket_file)
+					packet = LoopRecord.load_loop_2_from_connection(handle)
 
 				if callback:
 					callback(packet)
@@ -115,3 +77,8 @@ class Poller(object):
 
 		if not callback:
 			return packets
+
+
+class IPPoller(SerialIPCommunicator, Poller):
+	def __init__(self, host, port=SerialIPCommunicator.DEFAULT_PORT_NUMBER):
+		super(IPPoller, self).__init__(host, port)

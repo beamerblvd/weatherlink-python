@@ -1,3 +1,12 @@
+"""
+This module contains data definitions and data serialization/deserialization logic for data types (models) found in
+WeatherLink.com data downloads, WeatherLink serial communications, and WeatherLink software database files.
+
+The data formats in this file were obtained from Davis WeatherLink documentation in the following locations:
+	- http://www.davisnet.com/support/weather/download/VantageSerialProtocolDocs_v261.pdf
+	- C:/WeatherLink/Readme 6.0.rtf
+"""
+
 from __future__ import absolute_import
 
 import datetime
@@ -5,11 +14,6 @@ import decimal
 import enum
 import struct
 
-"""
-The data formats in this file were obtained from Davis WeatherLink documentation in the following locations:
-	- http://www.davisnet.com/support/weather/download/VantageSerialProtocolDocs_v261.pdf
-	- C:/WeatherLink/Readme 6.0.rtf
-"""
 
 DASH_LARGE = 32767
 DASH_LARGE_NEGATIVE = -32768

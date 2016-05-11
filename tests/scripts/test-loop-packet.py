@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 import curses.ascii
 import datetime
 import socket
@@ -31,12 +33,16 @@ with open('tests/scripts/test-loop-output.bin', 'wb') as handle:
 		print 'Unknown ACK received: %s...' % ack
 	setup_bits = sock.recv(1)
 	crc = sock.recv(2)
+	handle.write(ack)
+	handle.write(setup_bits)
+	handle.write(crc)
+	handle.write('\n')
 	print 'CRC: %s vs %s = result %s...' % (
 		calculate_weatherlink_crc(setup_bits),
 		struct.unpack_from('<h', crc)[0],
 		calculate_weatherlink_crc(setup_bits + crc),
 	)
-	collector_type = RainCollectorTypeSerial(setup_bits & 0x30)
+	collector_type = RainCollectorTypeSerial(ord(setup_bits) & 0x30)
 	print 'Rain collector type is %s.' % collector_type
 	print
 

@@ -1,3 +1,9 @@
+"""
+This module includes an exporter that can take WeatherLink records imported or downloaded and export them to a MySQL
+database. Though the schema used can be customized, the schema in mysql.sql is recommended. Additionally, this exporter
+can be used to calculate daily, weekly, monthly, yearly, and all-time summaries, and to analyze rain events.
+"""
+
 from __future__ import absolute_import
 
 import contextlib
@@ -10,11 +16,6 @@ import pytz
 
 import weatherlink.utils
 
-"""
-This module includes an exporter that can take WeatherLink records imported or downloaded and export them to a MySQL
-database. Though the schema used can be customized, the schema in mysql.sql is recommended. Additionally, this exporter
-can be used to calculate daily, weekly, monthly, yearly, and all-time summaries, and to analyze rain events.
-"""
 
 COLUMN_MAP_DO_NOT_INSERT = '__do_not_insert_this_value__'
 
@@ -172,6 +173,7 @@ class MySQLExporter(object):
 	@contextlib.contextmanager
 	def _get_cursor(self, statement=None, arguments=None):
 		cursor = None
+		exc = None
 		try:
 			cursor = self._connection.cursor()
 			if statement:
@@ -180,12 +182,16 @@ class MySQLExporter(object):
 				else:
 					cursor.execute(statement)
 			yield cursor
+		except Exception as e:
+			exc = e
+			raise
 		finally:
 			if cursor:
 				try:
 					cursor.close()
 				except:
-					pass
+					if not exc:
+						raise
 
 	def export_record(self, record):
 		argument_map = {}

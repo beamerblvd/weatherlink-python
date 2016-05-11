@@ -11,6 +11,8 @@ it will block indefinitely since this script handles only one connection at a ti
 To exit the proxy, press Ctrl+C.
 """
 
+from __future__ import absolute_import
+
 import collections
 import socket
 import sys
