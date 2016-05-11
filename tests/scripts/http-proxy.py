@@ -68,46 +68,57 @@ def main():
 	server.bind((proxy_listen, 80))
 	server.listen(1)
 
+	i = 0
 	while True:
 		incoming = outgoing = None
 		try:
 			# Blocks until an application comes in
 			incoming, _ = server.accept()
 
+			i += 1
 			print
 
-			outgoing = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-			outgoing.connect((proxy_to, 80))
+			with open('tests/data/http-proxy-request-%s.bin' % i, 'wb') as handle:
+				outgoing = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+				outgoing.connect((proxy_to, 80))
 
-			last_four = collections.deque(maxlen=4)
+				last_four = collections.deque(maxlen=4)
 
-			# Read and forward the URL
-			prelude = process_prelude(last_four, incoming, outgoing)
-			print 'Passing through request to server: %s' % prelude.strip()
+				# Read and forward the URL
+				prelude = process_prelude(last_four, incoming, outgoing)
+				print 'Passing through request to server: %s' % prelude.strip()
+				handle.write(prelude)
 
-			# Read and forward the headers
-			headers = process_headers(last_four, incoming, outgoing)
-			print 'Request headers: %s ' % headers
+				# Read and forward the headers
+				headers = process_headers(last_four, incoming, outgoing)
+				print 'Request headers: %s ' % headers
+				handle.write('%s\n' % headers)
 
-			# If there's a content length, we need to send data, too
-			data = process_data(headers, incoming, outgoing)
-			if data:
-				print 'Data sent: %s' % repr(data)
+				# If there's a content length, we need to send data, too
+				data = process_data(headers, incoming, outgoing)
+				if data:
+					print 'Data sent: %s' % repr(data)
+					handle.write(data)
+					handle.write('\n')
+				handle.write('\n')
 
-			last_four = collections.deque(maxlen=4)
+				last_four = collections.deque(maxlen=4)
 
-			# Read and return the response
-			prelude = process_prelude(last_four, outgoing, incoming)
-			print 'Passing through response to client: %s' % prelude.strip()
+				# Read and return the response
+				prelude = process_prelude(last_four, outgoing, incoming)
+				print 'Passing through response to client: %s' % prelude.strip()
+				handle.write(prelude)
 
-			# Read and return the headers
-			headers = process_headers(last_four, outgoing, incoming)
-			print 'Response headers: %s ' % headers
+				# Read and return the headers
+				headers = process_headers(last_four, outgoing, incoming)
+				print 'Response headers: %s ' % headers
+				handle.write('%s\n' % headers)
 
-			# If there's a content length, we need to receive data, too
-			data = process_data(headers, outgoing, incoming)
-			if data:
-				print 'Data received: %s' % repr(data)
+				# If there's a content length, we need to receive data, too
+				data = process_data(headers, outgoing, incoming)
+				if data:
+					print 'Data received: %s' % repr(data)
+					handle.write(data)
 		except KeyboardInterrupt:
 			server.close()
 			print
