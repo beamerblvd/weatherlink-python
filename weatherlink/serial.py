@@ -5,9 +5,11 @@ using the WeatherLink hardware.
 
 from __future__ import absolute_import
 
+import abc
 import contextlib
 import curses.ascii
 import socket
+import struct
 
 from weatherlink.models import calculate_weatherlink_crc
 
@@ -22,6 +24,7 @@ class SerialCommunicator(object):
 	ACK confirmations and the common pattern of confirming ACKs after sending instructions, and it provides a context
 	manager interface so that connect and disconnect do not have to be called directly.
 	"""
+	__metaclass__ = abc.ABCMeta
 
 	ACK_BYTE = chr(curses.ascii.ACK)
 
@@ -30,8 +33,10 @@ class SerialCommunicator(object):
 		Constructs a serial communicator. *args and **kwargs are specified so that we can have a well-behaving
 		multiple-inheritance scheme.
 		"""
+		del args, kwargs  # These are unused and cannot be passed to object#__init__()
 		super(SerialCommunicator, self).__init__()
 
+	@abc.abstractmethod
 	def connect(self):
 		"""
 		This method connects to the weather station using the supported hardware and the serial communication protocol.
@@ -42,6 +47,7 @@ class SerialCommunicator(object):
 		"""
 		raise NotImplementedError()
 
+	@abc.abstractmethod
 	def disconnect(self):
 		"""
 		This method disconnects from the weather station. Subclasses must implement this method. It returns nothing. It
@@ -55,7 +61,8 @@ class SerialCommunicator(object):
 	def __enter__(self):
 		self.connect()
 
-	def __exit__(self, exception_type, exception_value, exception_traceback):
+	def __exit__(self, exception_type, *_):
+		# noinspection PyBroadException
 		try:
 			self.disconnect()
 		except:
@@ -91,6 +98,7 @@ class SerialCommunicator(object):
 		if confirm_ack:
 			self.confirm_ack()
 
+	@abc.abstractmethod
 	def _send_data(self, data):
 		"""
 		Sends all of the data specified over the serial communications channel. Blocks until all data is sent or
@@ -103,6 +111,7 @@ class SerialCommunicator(object):
 		"""
 		raise NotImplementedError()
 
+	@abc.abstractmethod
 	def _read_data(self, length):
 		"""
 		Receives data up to the length indicated over the serial communications protocol. Depending on the underlying
@@ -118,6 +127,7 @@ class SerialCommunicator(object):
 		"""
 		raise NotImplementedError()
 
+	@abc.abstractmethod
 	def _get_file_handle(self):
 		"""
 		Returns a buffered file-like object that can be passed to routines expecting file-like objects. This object
@@ -182,6 +192,7 @@ class SerialIPCommunicator(SerialCommunicator):
 			raise
 		finally:
 			if handle:
+				# noinspection PyBroadException
 				try:
 					handle.close()
 				except:
@@ -190,6 +201,8 @@ class SerialIPCommunicator(SerialCommunicator):
 
 
 class ConfigurationSettingMixin(SerialCommunicator):
+	__metaclass__ = abc.ABCMeta
+
 	CONFIG_READ_INSTRUCTION = 'EEBRD %s %s\n'
 	CONFIG_WRITE_INSTRUCTION = 'EEBWR %s %s\n'
 
@@ -239,7 +252,22 @@ class ConfigurationSettingMixin(SerialCommunicator):
 
 		:return: Not implemented yet
 		"""
-		raise NotImplementedError()
+		self._send_instruction(self.CONFIG_WRITE_INSTRUCTION % (setting_address, setting_length, ))
+
+		crc = calculate_weatherlink_crc(setting_value)
+		data = setting_value + struct.pack('>H', crc)  # Unlike other little-endian data, CRCs are big-endian (eye roll)
+
+		verified_crc = calculate_weatherlink_crc(data)
+		if verified_crc != 0:
+			raise ValueError(
+				'CRC %s for data %s did not result in a CRC verification of 0, was %s.' % (
+					crc,
+					repr(setting_value),
+					verified_crc,
+				)
+			)
+
+		self._send_data(data)
 
 	def read_setup_bit(self, mask):
 		"""

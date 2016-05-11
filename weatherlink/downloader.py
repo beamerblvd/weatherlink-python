@@ -56,7 +56,10 @@ class Downloader(object):
 
 		response = _requests_session.get(url, stream=True)
 		assert response.headers['Content-Type'] == 'application/octet-stream', '%s' % response.headers['Content-Type']
-		assert response.headers['Content-Transfer-Encoding'] == 'binary', '%s' % response.headers['Content-Transfer-Encoding']
+		assert (
+			response.headers['Content-Transfer-Encoding'] == 'binary', '%s' %
+			response.headers['Content-Transfer-Encoding']
+		)
 
 		self._process_download(response.raw)
 
@@ -74,7 +77,7 @@ class Downloader(object):
 		self.record_count = int(headers['Records'])  # The number of records included in this response
 		self.max_account_records = int(headers['MaxRecords'])  # The maximum records this account will store
 
-		# For future possible use, the maxmimum time frame stored on the servers is the archive interval
+		# For future possible use, the maximum time frame stored on the servers is the archive interval
 		# in minutes multiplied by the maximum records this account will store.
 
 	def _process_download(self, download_response_handle):

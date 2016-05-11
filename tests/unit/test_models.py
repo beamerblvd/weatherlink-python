@@ -351,7 +351,7 @@ class TestLoopRecord(TestCase):
 			self.assertEqual('\n', sep)
 			self.assertEqual(curses.ascii.ACK, ack)
 
-			records = [LoopRecord.load_loop_2_from_connection(handle) for i in range(0, 15)]
+			records = [LoopRecord.load_loop_2_from_connection(handle) for _ in range(0, 15)]
 			self.assertEqual(15, len(records))
 
 			record = records[0]

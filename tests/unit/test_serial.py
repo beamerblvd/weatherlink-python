@@ -12,6 +12,7 @@ from weatherlink.serial import (
 
 
 class TestSerialCommunicator(TestCase):
+	@mock.patch.multiple('weatherlink.serial.SerialCommunicator', __abstractmethods__=set())
 	def setUp(self):
 		self.communicator = SerialCommunicator()
 
@@ -23,12 +24,13 @@ class TestSerialCommunicator(TestCase):
 		self.assertFalse(mock_connect.called)
 		self.assertFalse(mock_disconnect.called)
 
+		context = {'reached': False}
+
 		with self.assertRaises(ValueError):
 			with self.communicator:
-				self.fail('Should not have reached this statement.')
-			mock_connect.assert_called_once_with()
-			self.assertFalse(mock_disconnect.called)
+				context['reached'] = True
 
+		self.assertFalse(context['reached'])
 		mock_connect.assert_called_once_with()
 		self.assertFalse(mock_disconnect.called)
 
@@ -141,6 +143,7 @@ class TestSerialIPCommunicator(TestCase):
 
 
 class TestConfigurationSettingMixin(TestCase):
+	@mock.patch.multiple('weatherlink.serial.ConfigurationSettingMixin', __abstractmethods__=set())
 	def setUp(self):
 		self.communicator = ConfigurationSettingMixin()
 

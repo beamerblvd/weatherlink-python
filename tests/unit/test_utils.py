@@ -224,6 +224,7 @@ class TestIndexCalculation(TestCase):
 					except AssertionError as e:
 						ls = [a for a in e.args]
 						ls.append('Temperature %s, humidity %s' % (temperature, humidity, ))
+						# noinspection PyPropertyAccess
 						e.args = ls
 						raise e
 
@@ -261,6 +262,7 @@ class TestIndexCalculation(TestCase):
 				except AssertionError as e:
 					ls = [a for a in e.args]
 					ls.append('Temperature %s, wind %s' % (temperature, wind, ))
+					# noinspection PyPropertyAccess
 					e.args = ls
 					raise e
 

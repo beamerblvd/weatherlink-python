@@ -7,29 +7,34 @@ from weatherlink import __version__
 packages = find_packages(exclude=['tests', 'tests.*'])
 
 install_requirements = [
+	'six>=1.10.0',
 	'enum34>=1.1.5',
 	'pytz>=2016.4',
 	'requests==2.9.1',
-	'mysql-connector-python>=2.0.4',
+	'mysql_connector_python>=2.0.4',
 ]
 
 dependency_links = [
-	'https://cdn.mysql.com/Downloads/Connector-Python/mysql-connector-python-2.0.4.zip#egg=mysql-connector-python-2.0.4',
+	'https://cdn.mysql.com/Downloads/Connector-Python/mysql-connector-python-2.0.4.zip#egg=mysql_connector_python-2.0.4',
 ]
 
 test_requirements = [
+	'argparse==1.4.0',
 	'coverage==4.0.3',
 	'nose==1.3.7',
+	'funcsigs==1.0.2',
 	'mock==2.0.0',
 	'nosexcover==1.0.10',
+	'traceback2==1.4.0',
+	'linecache2==1.0.0',
 	'unittest2==1.1.0',
 ]
 
 if sys.argv[-1] == 'info':
-	print 'WeatherLink-Python Setup Information'
-	print
-	print 'Packages found: %s' % packages
-	print 'Install requirements: %s' % install_requirements
+	print('WeatherLink-Python Setup Information')
+	print()
+	print('Packages found: %s' % packages)
+	print('Install requirements: %s' % install_requirements)
 	sys.exit()
 
 if sys.argv[-1] == 'tag':

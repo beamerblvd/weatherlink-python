@@ -222,6 +222,7 @@ def convert_miles_per_hour_to_meters_per_second(wind_speed):
 	return (wind_speed * METERS_PER_SECOND_CONSTANT).quantize(METERS_PER_SECOND_CONSTANT)
 
 
+# noinspection PyPep8Naming
 def calculate_wet_bulb_temperature(temperature, relative_humidity, barometric_pressure):
 	"""
 	Uses the temperature, relative humidity, and barometric pressure to calculate the wet bulb temperature, which is
@@ -267,6 +268,7 @@ def calculate_wet_bulb_temperature(temperature, relative_humidity, barometric_pr
 	return convert_celsius_to_fahrenheit(Tw).quantize(ONE_TENTH)
 
 
+# noinspection PyPep8Naming
 def calculate_dew_point(temperature, relative_humidity):
 	"""
 	Uses the temperature and relative humidity to calculate the dew point, a measure of atmospheric moisture that is
@@ -303,6 +305,7 @@ def _abs(d):
 	return max(d, -d)
 
 
+# noinspection PyPep8Naming
 def calculate_heat_index(temperature, relative_humidity):
 	"""
 	Uses the temperature and relative humidity to calculate the heat index, the purpose of which is to represent a
@@ -359,6 +362,7 @@ def calculate_heat_index(temperature, relative_humidity):
 	return heat_index.quantize(ONE_TENTH, rounding=decimal.ROUND_CEILING)
 
 
+# noinspection PyPep8Naming
 def calculate_wind_chill(temperature, wind_speed):
 	"""
 	Uses the air temperature and wind speed to calculate the wind chill, the purpose of which is to represent a
@@ -399,6 +403,7 @@ def calculate_wind_chill(temperature, wind_speed):
 	return T if wind_chill > T else wind_chill
 
 
+# noinspection PyPep8Naming
 def calculate_thw_index(temperature, relative_humidity, wind_speed):
 	"""
 	Uses the air temperature, relative humidity, and wind speed (THW = temperature-humidity-wind) to calculate a
@@ -430,6 +435,7 @@ def calculate_thw_index(temperature, relative_humidity, wind_speed):
 	return hi - (THW_INDEX_CONSTANT * WS).quantize(ONE_TENTH, rounding=decimal.ROUND_CEILING)
 
 
+# noinspection PyPep8Naming
 def calculate_thsw_index(temperature, relative_humidity, solar_radiation, wind_speed):
 	"""
 	Uses the air temperature, relative humidity, solar radiation, and wind speed (THSW = temperature-humidity-sun-wind)

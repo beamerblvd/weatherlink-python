@@ -42,7 +42,12 @@ class Importer(object):
 				if day > 0:
 					for r in range(0, day_index.record_count - 1):
 						if r == 0:
-							self.daily_summaries[day] = DailySummary.load_from_wlk(file_handle, self.year, self.month, day)
+							self.daily_summaries[day] = DailySummary.load_from_wlk(
+								file_handle,
+								self.year,
+								self.month,
+								day,
+							)
 						else:
 							record = ArchiveIntervalRecord.load_from_wlk(file_handle, self.year, self.month, day)
 							self.records.append(record)

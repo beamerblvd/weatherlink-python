@@ -14,6 +14,8 @@ import decimal
 import enum
 import struct
 
+import six
+
 
 DASH_LARGE = 32767
 DASH_LARGE_NEGATIVE = -32768
@@ -52,7 +54,7 @@ HUNDREDTHS = lambda x: x * _HUNDREDTHS
 _THOUSANDTHS = decimal.Decimal('0.001')
 THOUSANDTHS = lambda x: x * _THOUSANDTHS
 
-INCHES_PER_CENTIMETER = decimal.Decimal('0.393701')
+_INCHES_PER_CENTIMETER = decimal.Decimal('0.393701')
 
 
 def convert_datetime_to_timestamp(d):
@@ -104,8 +106,8 @@ class WindDirection(enum.Enum):
 	def from_degrees(degrees):
 		if degrees < 1 or degrees > 360:
 			return None
-		return WindDirection._FROM_DEGREE_MAP[degrees]
-WindDirection._FROM_DEGREE_MAP = {
+		return _WindDirection__FROM_DEGREE_MAP[degrees]
+_WindDirection__FROM_DEGREE_MAP = {
 	350: WindDirection.N, 351: WindDirection.N, 352: WindDirection.N, 353: WindDirection.N, 354: WindDirection.N, 355: WindDirection.N, 356: WindDirection.N, 357: WindDirection.N, 358: WindDirection.N, 359: WindDirection.N, 360: WindDirection.N, 1: WindDirection.N, 2: WindDirection.N, 3: WindDirection.N, 4: WindDirection.N, 5: WindDirection.N, 6: WindDirection.N, 7: WindDirection.N, 8: WindDirection.N, 9: WindDirection.N, 10: WindDirection.N, 11: WindDirection.N,  # noqa
 	12: WindDirection.NNE, 13: WindDirection.NNE, 14: WindDirection.NNE, 15: WindDirection.NNE, 16: WindDirection.NNE, 17: WindDirection.NNE, 18: WindDirection.NNE, 19: WindDirection.NNE, 20: WindDirection.NNE, 21: WindDirection.NNE, 22: WindDirection.NNE, 23: WindDirection.NNE, 24: WindDirection.NNE, 25: WindDirection.NNE, 26: WindDirection.NNE, 27: WindDirection.NNE, 28: WindDirection.NNE, 29: WindDirection.NNE, 30: WindDirection.NNE, 31: WindDirection.NNE, 32: WindDirection.NNE, 33: WindDirection.NNE, 34: WindDirection.NNE,  # noqa
 	35: WindDirection.NE, 36: WindDirection.NE, 37: WindDirection.NE, 38: WindDirection.NE, 39: WindDirection.NE, 40: WindDirection.NE, 41: WindDirection.NE, 42: WindDirection.NE, 43: WindDirection.NE, 44: WindDirection.NE, 45: WindDirection.NE, 46: WindDirection.NE, 47: WindDirection.NE, 48: WindDirection.NE, 49: WindDirection.NE, 50: WindDirection.NE, 51: WindDirection.NE, 52: WindDirection.NE, 53: WindDirection.NE, 54: WindDirection.NE, 55: WindDirection.NE, 56: WindDirection.NE,  # noqa
@@ -134,10 +136,10 @@ class RainCollectorTypeSerial(RainCollectorType):
 	millimeters_0_2 = 0x10
 	millimeters_0_1 = 0x20
 RainCollectorTypeSerial.inches_0_01.clicks_to_inches = lambda c: c * _HUNDREDTHS
-RainCollectorTypeSerial.inches_0_01.clicks_to_centimeters = lambda c: c / INCHES_PER_CENTIMETER * _HUNDREDTHS
-RainCollectorTypeSerial.millimeters_0_2.clicks_to_inches = lambda c: c * _HUNDREDTHS * INCHES_PER_CENTIMETER * 2
+RainCollectorTypeSerial.inches_0_01.clicks_to_centimeters = lambda c: c / _INCHES_PER_CENTIMETER * _HUNDREDTHS
+RainCollectorTypeSerial.millimeters_0_2.clicks_to_inches = lambda c: c * _HUNDREDTHS * _INCHES_PER_CENTIMETER * 2
 RainCollectorTypeSerial.millimeters_0_2.clicks_to_centimeters = lambda c: c * _HUNDREDTHS * 2
-RainCollectorTypeSerial.millimeters_0_1.clicks_to_inches = lambda c: c * _HUNDREDTHS * INCHES_PER_CENTIMETER
+RainCollectorTypeSerial.millimeters_0_1.clicks_to_inches = lambda c: c * _HUNDREDTHS * _INCHES_PER_CENTIMETER
 RainCollectorTypeSerial.millimeters_0_1.clicks_to_centimeters = lambda c: c * _HUNDREDTHS
 
 
@@ -148,18 +150,21 @@ class RainCollectorTypeDatabase(RainCollectorType):
 	millimeters_1_0 = 0x3000
 	millimeters_0_1 = 0x6000
 RainCollectorTypeDatabase.inches_0_1.clicks_to_inches = lambda c: _TENTHS * c
-RainCollectorTypeDatabase.inches_0_1.clicks_to_centimeters = lambda c: c / INCHES_PER_CENTIMETER * _TENTHS
+RainCollectorTypeDatabase.inches_0_1.clicks_to_centimeters = lambda c: c / _INCHES_PER_CENTIMETER * _TENTHS
 RainCollectorTypeDatabase.inches_0_01.clicks_to_inches = lambda c: _HUNDREDTHS * c
-RainCollectorTypeDatabase.inches_0_01.clicks_to_centimeters = lambda c: c / INCHES_PER_CENTIMETER * _HUNDREDTHS
-RainCollectorTypeDatabase.millimeters_0_2.clicks_to_inches = lambda c: _HUNDREDTHS * INCHES_PER_CENTIMETER * c * 2
+RainCollectorTypeDatabase.inches_0_01.clicks_to_centimeters = lambda c: c / _INCHES_PER_CENTIMETER * _HUNDREDTHS
+RainCollectorTypeDatabase.millimeters_0_2.clicks_to_inches = lambda c: _HUNDREDTHS * _INCHES_PER_CENTIMETER * c * 2
 RainCollectorTypeDatabase.millimeters_0_2.clicks_to_centimeters = lambda c: c * _HUNDREDTHS * 2
-RainCollectorTypeDatabase.millimeters_1_0.clicks_to_inches = lambda c: _TENTHS * INCHES_PER_CENTIMETER * c
+RainCollectorTypeDatabase.millimeters_1_0.clicks_to_inches = lambda c: _TENTHS * _INCHES_PER_CENTIMETER * c
 RainCollectorTypeDatabase.millimeters_1_0.clicks_to_centimeters = lambda c: c * _TENTHS
-RainCollectorTypeDatabase.millimeters_0_1.clicks_to_inches = lambda c: _HUNDREDTHS * INCHES_PER_CENTIMETER * c
+RainCollectorTypeDatabase.millimeters_0_1.clicks_to_inches = lambda c: _HUNDREDTHS * _INCHES_PER_CENTIMETER * c
 RainCollectorTypeDatabase.millimeters_0_1.clicks_to_centimeters = lambda c: c * _HUNDREDTHS
 
 
 class RecordDict(dict):
+	def __init__(self, *args, **kwargs):
+		super(RecordDict, self).__init__(*args, **kwargs)
+
 	def __getattr__(self, name):
 		return self.__getitem__(name)
 
@@ -302,6 +307,9 @@ class DailySummary(RecordDict):
 		('integrated_cooling_degree_days', TENTHS, DASH_ZERO, ),
 	)
 
+	def __init__(self, *args, **kwargs):
+		super(DailySummary, self).__init__(*args, **kwargs)
+
 	@classmethod
 	def load_from_wlk(cls, file_handle, year, month, day):
 		arguments = struct.unpack_from(
@@ -309,7 +317,7 @@ class DailySummary(RecordDict):
 			file_handle.read(cls.DAILY_SUMMARY_LENGTH),
 		)
 
-		for k, v in cls.DAILY_SUMMARY_VERIFICATION_MAP.iteritems():
+		for k, v in six.iteritems(cls.DAILY_SUMMARY_VERIFICATION_MAP):
 			assert arguments[k] == v
 
 		kwargs = {}
@@ -440,7 +448,7 @@ class ArchiveIntervalRecord(RecordDict):
 			file_handle.read(cls.RECORD_LENGTH_WLK),
 		)
 
-		for k, v in cls.RECORD_VERIFICATION_MAP_WLK.iteritems():
+		for k, v in six.iteritems(cls.RECORD_VERIFICATION_MAP_WLK):
 			assert arguments[k] == v
 
 		kwargs = {}
@@ -481,7 +489,7 @@ class ArchiveIntervalRecord(RecordDict):
 		if arguments[0] < 1:
 			return None
 
-		for k, v in cls.RECORD_VERIFICATION_MAP_DOWNLOAD.iteritems():
+		for k, v in six.iteritems(cls.RECORD_VERIFICATION_MAP_DOWNLOAD):
 			assert arguments[k] == v
 
 		kwargs = {}
@@ -668,7 +676,7 @@ class LoopRecord(RecordDict):
 
 		unpacked = struct.unpack_from(cls.LOOP2_RECORD_FORMAT, data)
 
-		for k, v in cls.LOOP2_RECORD_VERIFICATION_MAP_WLK.iteritems():
+		for k, v in six.iteritems(cls.LOOP2_RECORD_VERIFICATION_MAP_WLK):
 			assert unpacked[k] == v
 
 		arguments = {'crc_match': calculate_weatherlink_crc(data) == 0, 'record_type': 2}
@@ -748,7 +756,7 @@ WEATHERLINK_CRC_TABLE = (
 
 def calculate_weatherlink_crc(data_bytes):
 	crc = 0
-	cast_with_ord = isinstance(data_bytes, basestring)
+	cast_with_ord = isinstance(data_bytes, six.string_types)
 	for i, byte in enumerate(data_bytes):
 		if cast_with_ord:
 			byte = ord(byte)

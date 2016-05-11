@@ -1,17 +1,17 @@
-https://pypi.python.org/packages/66/18/bbdbe6a09b2dd4517913a8cd7aed246dc78ae11a9ed108b88e6695819ee4/enum34-1.1.5.tar.gz#md5=4c4ee33a974d5fa97e4f6e7bd56dddb7
-https://pypi.python.org/packages/6c/4a/eb896a5629813b56f5a79cc6b7f5551598f27f1eea6c00c68b47541c1501/pytz-2016.4.zip#md5=eeb649e63d56fac3566a3fefaa35c7fa
-https://pypi.python.org/packages/f9/6d/07c44fb1ebe04d069459a189e7dab9e4abfe9432adcd4477367c25332748/requests-2.9.1.tar.gz#md5=0b7f480d19012ec52bab78292efd976d
-https://cdn.mysql.com/Downloads/Connector-Python/mysql-connector-python-2.0.4.zip#md5=3df394d89300db95163f17c843ef49df
+https://pypi.python.org/packages/b3/b2/238e2590826bfdd113244a40d9d3eb26918bd798fc187e2360a8367068db/six-1.10.0.tar.gz#egg=six
+https://pypi.python.org/packages/66/18/bbdbe6a09b2dd4517913a8cd7aed246dc78ae11a9ed108b88e6695819ee4/enum34-1.1.5.tar.gz#egg=enum34
+https://pypi.python.org/packages/6c/4a/eb896a5629813b56f5a79cc6b7f5551598f27f1eea6c00c68b47541c1501/pytz-2016.4.zip#egg=pytz
+https://pypi.python.org/packages/f9/6d/07c44fb1ebe04d069459a189e7dab9e4abfe9432adcd4477367c25332748/requests-2.9.1.tar.gz#egg=requests
+https://cdn.mysql.com/Downloads/Connector-Python/mysql-connector-python-2.0.4.zip#egg=mysql_connector_python
 
 # Test-only requirements
 
-https://pypi.python.org/packages/b3/b2/238e2590826bfdd113244a40d9d3eb26918bd798fc187e2360a8367068db/six-1.10.0.tar.gz#md5=34eed507548117b2ab523ab14b2f8b55
-https://pypi.python.org/packages/18/dd/e617cfc3f6210ae183374cd9f6a26b20514bbb5a792af97949c5aacddf0f/argparse-1.4.0.tar.gz#md5=08062d2ceb6596fcbc5a7e725b53746f
-https://pypi.python.org/packages/76/b4/3777a6bae434240b1fcbbda6cb30085bd897b3519acfffea498ee9f41038/coverage-4.0.3.tar.gz#md5=c7d3db1882484022c81bf619be7b6365
-https://pypi.python.org/packages/58/a5/0dc93c3ec33f4e281849523a5a913fa1eea9a3068acfa754d44d88107a44/nose-1.3.7.tar.gz#md5=4d3ad0ff07b61373d2cefc89c5d0b20b
-https://pypi.python.org/packages/94/4a/db842e7a0545de1cdb0439bb80e6e42dfe82aaeaadd4072f2263a4fbed23/funcsigs-1.0.2.tar.gz#md5=7e583285b1fb8a76305d6d68f4ccc14e
-https://pypi.python.org/packages/0c/53/014354fc93c591ccc4abff12c473ad565a2eb24dcd82490fae33dbf2539f/mock-2.0.0.tar.gz#md5=0febfafd14330c9dcaa40de2d82d40ad
-https://pypi.python.org/packages/79/5e/e882c69e11c7fa1ae1c73f8470294559420593a12ec876acbcd44b4e58e5/nosexcover-1.0.10.tar.gz#md5=12bf494a801b376debeb6a167c247391
-https://pypi.python.org/packages/eb/7f/e20ba11390bdfc55117c8c6070838ec914e6f0053a602390a598057884eb/traceback2-1.4.0.tar.gz#md5=9e9723f4d70bfc6308fa992dd193c400
-https://pypi.python.org/packages/44/b0/963c352372c242f9e40db02bbc6a39ae51bde15dddee8523fe4aca94a97e/linecache2-1.0.0.tar.gz#md5=7b25d0289ec36bff1f9e63c4329ce65c
-https://pypi.python.org/packages/7f/c4/2b0e2d185d9d60772c10350d9853646832609d2f299a8300ab730f199db4/unittest2-1.1.0.tar.gz#md5=f72dae5d44f091df36b6b513305ea000
+https://pypi.python.org/packages/18/dd/e617cfc3f6210ae183374cd9f6a26b20514bbb5a792af97949c5aacddf0f/argparse-1.4.0.tar.gz#egg=argparse
+https://pypi.python.org/packages/76/b4/3777a6bae434240b1fcbbda6cb30085bd897b3519acfffea498ee9f41038/coverage-4.0.3.tar.gz#egg=coverage
+https://pypi.python.org/packages/58/a5/0dc93c3ec33f4e281849523a5a913fa1eea9a3068acfa754d44d88107a44/nose-1.3.7.tar.gz#egg=nose
+https://pypi.python.org/packages/94/4a/db842e7a0545de1cdb0439bb80e6e42dfe82aaeaadd4072f2263a4fbed23/funcsigs-1.0.2.tar.gz#egg=funcsigs
+https://pypi.python.org/packages/0c/53/014354fc93c591ccc4abff12c473ad565a2eb24dcd82490fae33dbf2539f/mock-2.0.0.tar.gz#egg=mock
+https://pypi.python.org/packages/79/5e/e882c69e11c7fa1ae1c73f8470294559420593a12ec876acbcd44b4e58e5/nosexcover-1.0.10.tar.gz#egg=nosexcover
+https://pypi.python.org/packages/eb/7f/e20ba11390bdfc55117c8c6070838ec914e6f0053a602390a598057884eb/traceback2-1.4.0.tar.gz#egg=traceback2
+https://pypi.python.org/packages/44/b0/963c352372c242f9e40db02bbc6a39ae51bde15dddee8523fe4aca94a97e/linecache2-1.0.0.tar.gz#egg=linecache2
+https://pypi.python.org/packages/7f/c4/2b0e2d185d9d60772c10350d9853646832609d2f299a8300ab730f199db4/unittest2-1.1.0.tar.gz#egg=unittest2

@@ -13,6 +13,7 @@ import datetime
 import mysql.connector
 import mysql.connector.errors
 import pytz
+import six
 
 import weatherlink.utils
 
@@ -141,7 +142,7 @@ class MySQLExporter(object):
 
 	@station_time_zone.setter
 	def station_time_zone(self, value):
-		self._station_time_zone = pytz.timezone(value) if isinstance(value, basestring) else value
+		self._station_time_zone = pytz.timezone(value) if isinstance(value, six.string_types) else value
 
 	def connect(self):
 		self._connection = mysql.connector.connect(
@@ -162,7 +163,8 @@ class MySQLExporter(object):
 	def __enter__(self):
 		self.connect()
 
-	def __exit__(self, exception_type, exception_value, exception_traceback):
+	def __exit__(self, exception_type, *_):
+		# noinspection PyBroadException
 		try:
 			self.disconnect()
 		except:
@@ -187,6 +189,7 @@ class MySQLExporter(object):
 			raise
 		finally:
 			if cursor:
+				# noinspection PyBroadException
 				try:
 					cursor.close()
 				except:
@@ -201,7 +204,7 @@ class MySQLExporter(object):
 
 		column_list = []
 		arguments = []
-		for k, v in argument_map.iteritems():
+		for k, v in six.iteritems(argument_map):
 			if k != COLUMN_MAP_DO_NOT_INSERT:
 				column_list.append(k)
 				arguments.append(v)
@@ -233,7 +236,7 @@ class MySQLExporter(object):
 	def _add_calculated_values_to_arguments(self, record, arguments):
 		column_map = self.archive_table_column_map
 
-		for k, v in weatherlink.utils.calculate_all_record_values(record).iteritems():
+		for k, v in six.iteritems(weatherlink.utils.calculate_all_record_values(record)):
 			if k in column_map:
 				arguments[column_map[k]] = v
 
