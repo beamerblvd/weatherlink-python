@@ -11,7 +11,44 @@ import curses.ascii
 import socket
 import struct
 
+import six
+
 from weatherlink.models import calculate_weatherlink_crc
+
+
+if six.binary_type == str:
+	# Values returned by binary file reading are plain strings, binary chars are plain strings in Python 2
+	def char_to_byte(char):
+		return ord(char)
+else:
+	# Values returned by binary file reading are binary strings (bytes), binary chars are ints in Python 3
+	def char_to_byte(char):
+		return char
+
+
+class AcknowledgmentError(IOError):
+	pass
+
+
+class NotAcknowledgedError(AcknowledgmentError):
+	NAK_BYTE = 0x21
+
+	@classmethod
+	def raise_if_not_acknowledged(cls, ack):
+		ack = char_to_byte(ack)
+		if ack == curses.ascii.NAK or ack == cls.NAK_BYTE:
+			raise cls('Request not acknowledged by weather console')
+
+
+class InvalidAcknowledgementError(AcknowledgmentError):
+	@classmethod
+	def raise_if_not_acknowledged(cls, ack):
+		if char_to_byte(ack) != curses.ascii.ACK:
+			raise cls('Expected ACK response 0x06, received %s instead.' % ack)
+
+
+class CRCValidationError(IOError):
+	pass
 
 
 class SerialCommunicator(object):
@@ -25,8 +62,6 @@ class SerialCommunicator(object):
 	manager interface so that connect and disconnect do not have to be called directly.
 	"""
 	__metaclass__ = abc.ABCMeta
-
-	ACK_BYTE = chr(curses.ascii.ACK)
 
 	def __init__(self, *args, **kwargs):
 		"""
@@ -75,11 +110,12 @@ class SerialCommunicator(object):
 		Reads a single bite from the serial communications channel and confirms that it is a proper ACK byte.
 		Returns nothing.
 
-		:raises IOError: If the byte read is not an ACK byte
+		:raises NotAcknowledgedError: If the byte read is an NAK byte (0x15) or a ! (0x21)
+		:raises InvalidAcknowledgementError: If the byte read is not an ACK byte (0x06)
 		"""
-		ack = self._read_data(1)
-		if ack != self.ACK_BYTE:
-			raise IOError('Expected ACK response 0x06, received %s instead.' % ack)
+		ack = self._read_data(1)[0]
+		NotAcknowledgedError.raise_if_not_acknowledged(ack)
+		InvalidAcknowledgementError.raise_if_not_acknowledged(ack)
 
 	def _send_instruction(self, command, confirm_ack=True):
 		"""
@@ -91,7 +127,7 @@ class SerialCommunicator(object):
 							(defaults to `True`)
 		:type confirm_ack: bool
 
-		:raises IOError: If `confirm_ack` is `True` and the byte read is not an ACK byte
+		:raises AcknowledgmentError: If `confirm_ack` is `True` and the byte read is not an ACK byte
 		"""
 		self._send_data(command)
 
@@ -217,6 +253,7 @@ class ConfigurationSettingMixin(SerialCommunicator):
 		"""
 		Reads a configuration setting from the weather console. Returns the raw setting bytes and optionally
 		(default `False`) the CRC. Optionally (default `True`) validates the CRC to confirm the data is correct.
+		Returns a `str` in Python 2.7 and `bytes` in Python 3.1+.
 
 		:param setting_address: The address at which the desired setting resides (a number in hex string format)
 		:type setting_address: str | unicode
@@ -229,8 +266,9 @@ class ConfigurationSettingMixin(SerialCommunicator):
 		:type return_crc: bool
 
 		:return: The raw setting bytes, optionally including the CRC as the last two bytes
-		:rtype: str
-		:raises ValueError: If an incorrect ACK is returned or `confirm_crc` is `True` and the CRC does not match
+		:rtype: str | bytes
+		:raises AcknowledgmentError: If an incorrect ACK is returned
+		:raises CRCValidationError: If `confirm_crc` is `True` and the CRC does not match
 		"""
 		self._send_instruction(self.CONFIG_READ_INSTRUCTION % (setting_address, setting_length, ))
 
@@ -238,20 +276,32 @@ class ConfigurationSettingMixin(SerialCommunicator):
 			setting = handle.read(int('0x%s' % setting_length, 16) + 2)  # must read the CRC
 
 		if confirm_crc and calculate_weatherlink_crc(setting) != 0:
-			raise ValueError('CRC for response %s does not resolve to zero.' % repr(setting))
+			raise CRCValidationError('CRC for response %s does not resolve to zero.' % repr(setting))
 
 		return setting if return_crc else setting[:-2]
 
 	def write_config_setting(self, setting_address, setting_length, setting_value):
 		"""
-		Writes a configuration setting. This is not implemented yet.
+		Writes a configuration setting to the weather console. The length of the `setting_value` must match the value
+		of `setting_length`. Returns nothing. Setting value should be a `str` in Python 3.7 and `bytes` in Python 3.1+.
 
-		:param setting_address: Not implemented yet
-		:param setting_length: Not implemented yet
-		:param setting_value: Not implemented yet
+		:param setting_address: The address at which the desired setting resides (a number in hex string format)
+		:type setting_address: str | unicode
+		:param setting_length: The length of the desired setting in bytes (a number in hex string format), not including
+								the two CRC bytes (that is calculated and added automatically)
+		:type setting_length: str | unicode
+		:param setting_value: The new setting value, not including the twe CRC bytes (that is calculated and added
+								automatically)
+		:type setting_value: str | bytes
 
-		:return: Not implemented yet
+		:raises ValueError: If the setting value length and setting length do not match
+		:raises AcknowledgmentError: If an incorrect ACK is returned
+		:raises CRCValidationError: If the calculated CRC, appended to the setting value, does not result in a CRC
+									validation value of 0.
 		"""
+		if len(setting_value) != int('0x%s' % setting_length, 16):
+			raise ValueError('The length of the setting value does not match the setting length.')
+
 		self._send_instruction(self.CONFIG_WRITE_INSTRUCTION % (setting_address, setting_length, ))
 
 		crc = calculate_weatherlink_crc(setting_value)
@@ -259,7 +309,7 @@ class ConfigurationSettingMixin(SerialCommunicator):
 
 		verified_crc = calculate_weatherlink_crc(data)
 		if verified_crc != 0:
-			raise ValueError(
+			raise CRCValidationError(
 				'CRC %s for data %s did not result in a CRC verification of 0, was %s.' % (
 					crc,
 					repr(setting_value),
@@ -279,7 +329,8 @@ class ConfigurationSettingMixin(SerialCommunicator):
 
 		:return: The value of the setting
 		:rtype: int
-		:raises ValueError: If an incorrect ACK is returned or the CRC does not match
+		:raises AcknowledgmentError: If an incorrect ACK is returned
+		:raises CRCValidationError: If the CRC does not match
 		"""
 		setup_bits = ord(self.read_config_setting(*self.CONFIG_SETTING_SETUP_BITS))
 		return setup_bits & mask
@@ -290,6 +341,7 @@ class ConfigurationSettingMixin(SerialCommunicator):
 
 		:return: The rain collector type integer
 		:rtype: int
-		:raises ValueError: If an incorrect ACK is returned or the CRC does not match
+		:raises AcknowledgmentError: If an incorrect ACK is returned
+		:raises CRCValidationError: If the CRC does not match
 		"""
 		return self.read_setup_bit(self.SETUP_BITS_MASK_RAIN_COLLECTOR)

@@ -3,11 +3,16 @@ from __future__ import absolute_import
 import mock
 from unittest import TestCase
 
+import six
+
 from weatherlink.models import RainCollectorTypeSerial
 from weatherlink.serial import (
+	ConfigurationSettingMixin,
+	CRCValidationError,
+	InvalidAcknowledgementError,
+	NotAcknowledgedError,
 	SerialCommunicator,
 	SerialIPCommunicator,
-	ConfigurationSettingMixin,
 )
 
 
@@ -97,17 +102,35 @@ class TestSerialCommunicator(TestCase):
 
 	@mock.patch('weatherlink.serial.SerialCommunicator._read_data')
 	def test_confirm_ack_succeeds(self, mock_read_data):
-		mock_read_data.return_value = '\x06'
+		mock_read_data.return_value = b'\x06'
 
 		self.communicator.confirm_ack()
 
 		mock_read_data.assert_called_once_with(1)
 
 	@mock.patch('weatherlink.serial.SerialCommunicator._read_data')
-	def test_confirm_ack_fails(self, mock_read_data):
-		mock_read_data.return_value = '\x04'
+	def test_confirm_ack_nak1(self, mock_read_data):
+		mock_read_data.return_value = b'\x15'
 
-		with self.assertRaises(IOError):
+		with self.assertRaises(NotAcknowledgedError):
+			self.communicator.confirm_ack()
+
+		mock_read_data.assert_called_once_with(1)
+
+	@mock.patch('weatherlink.serial.SerialCommunicator._read_data')
+	def test_confirm_ack_nak2(self, mock_read_data):
+		mock_read_data.return_value = b'\x21'
+
+		with self.assertRaises(NotAcknowledgedError):
+			self.communicator.confirm_ack()
+
+		mock_read_data.assert_called_once_with(1)
+
+	@mock.patch('weatherlink.serial.SerialCommunicator._read_data')
+	def test_confirm_ack_fails(self, mock_read_data):
+		mock_read_data.return_value = b'\x04'
+
+		with self.assertRaises(InvalidAcknowledgementError):
 			self.communicator.confirm_ack()
 
 		mock_read_data.assert_called_once_with(1)
@@ -152,48 +175,48 @@ class TestConfigurationSettingMixin(TestCase):
 	@mock.patch('weatherlink.serial.ConfigurationSettingMixin._send_instruction')
 	def test_read_config_setting_defaults(self, mock_send_instruction, mock_get_file_handle, mock_crc):
 		mock_get_file_handle.return_value = mock.MagicMock(spec=file)
-		mock_get_file_handle.return_value.__enter__.return_value.read.return_value = '\xFF\xE3\x03\x41'
+		mock_get_file_handle.return_value.__enter__.return_value.read.return_value = b'\xFF\xE3\x03\x41'
 		mock_crc.return_value = 0
 
 		setting = self.communicator.read_config_setting('3C', '02')
 
-		self.assertEqual('\xFF\xE3', setting)
+		self.assertEqual(b'\xFF\xE3', setting)
 
 		mock_send_instruction.assert_called_once_with('EEBRD 3C 02\n')
 		mock_get_file_handle.assert_called_once_with()
 		mock_get_file_handle.return_value.__enter__.assert_called_once()
 		mock_get_file_handle.return_value.__exit__.assert_called_once()
 		mock_get_file_handle.return_value.__enter__.return_value.read.assert_called_once_with(4)
-		mock_crc.assert_called_once_with('\xFF\xE3\x03\x41')
+		mock_crc.assert_called_once_with(b'\xFF\xE3\x03\x41')
 
 	@mock.patch('weatherlink.serial.calculate_weatherlink_crc')
 	@mock.patch('weatherlink.serial.ConfigurationSettingMixin._get_file_handle')
 	@mock.patch('weatherlink.serial.ConfigurationSettingMixin._send_instruction')
 	def test_read_config_setting_return_crc(self, mock_send_instruction, mock_get_file_handle, mock_crc):
 		mock_get_file_handle.return_value = mock.MagicMock(spec=file)
-		mock_get_file_handle.return_value.__enter__.return_value.read.return_value = '\xF3\x14\x5E'
+		mock_get_file_handle.return_value.__enter__.return_value.read.return_value = b'\xF3\x14\x5E'
 		mock_crc.return_value = 0
 
 		setting = self.communicator.read_config_setting('2F', '01', return_crc=True)
 
-		self.assertEqual('\xF3\x14\x5E', setting)
+		self.assertEqual(b'\xF3\x14\x5E', setting)
 
 		mock_send_instruction.assert_called_once_with('EEBRD 2F 01\n')
 		mock_get_file_handle.assert_called_once_with()
 		mock_get_file_handle.return_value.__enter__.assert_called_once()
 		mock_get_file_handle.return_value.__exit__.assert_called_once()
 		mock_get_file_handle.return_value.__enter__.return_value.read.assert_called_once_with(3)
-		mock_crc.assert_called_once_with('\xF3\x14\x5E')
+		mock_crc.assert_called_once_with(b'\xF3\x14\x5E')
 
 	@mock.patch('weatherlink.serial.calculate_weatherlink_crc')
 	@mock.patch('weatherlink.serial.ConfigurationSettingMixin._get_file_handle')
 	@mock.patch('weatherlink.serial.ConfigurationSettingMixin._send_instruction')
 	def test_read_config_setting_crc_fails(self, mock_send_instruction, mock_get_file_handle, mock_crc):
 		mock_get_file_handle.return_value = mock.MagicMock(spec=file)
-		mock_get_file_handle.return_value.__enter__.return_value.read.return_value = '\xFF\xE3\x03\x41'
+		mock_get_file_handle.return_value.__enter__.return_value.read.return_value = b'\xFF\xE3\x03\x41'
 		mock_crc.return_value = 123489
 
-		with self.assertRaises(ValueError):
+		with self.assertRaises(CRCValidationError):
 			self.communicator.read_config_setting('3C', '02')
 
 		mock_send_instruction.assert_called_once_with('EEBRD 3C 02\n')
@@ -201,19 +224,19 @@ class TestConfigurationSettingMixin(TestCase):
 		mock_get_file_handle.return_value.__enter__.assert_called_once()
 		mock_get_file_handle.return_value.__exit__.assert_called_once()
 		mock_get_file_handle.return_value.__enter__.return_value.read.assert_called_once_with(4)
-		mock_crc.assert_called_once_with('\xFF\xE3\x03\x41')
+		mock_crc.assert_called_once_with(b'\xFF\xE3\x03\x41')
 
 	@mock.patch('weatherlink.serial.calculate_weatherlink_crc')
 	@mock.patch('weatherlink.serial.ConfigurationSettingMixin._get_file_handle')
 	@mock.patch('weatherlink.serial.ConfigurationSettingMixin._send_instruction')
 	def test_read_config_setting_crc_ignored(self, mock_send_instruction, mock_get_file_handle, mock_crc):
 		mock_get_file_handle.return_value = mock.MagicMock(spec=file)
-		mock_get_file_handle.return_value.__enter__.return_value.read.return_value = '\xF3\x14\x5E'
+		mock_get_file_handle.return_value.__enter__.return_value.read.return_value = b'\xF3\x14\x5E'
 		mock_crc.return_value = 123489
 
 		setting = self.communicator.read_config_setting('2F', '01', confirm_crc=False)
 
-		self.assertEqual('\xF3', setting)
+		self.assertEqual(b'\xF3', setting)
 
 		mock_send_instruction.assert_called_once_with('EEBRD 2F 01\n')
 		mock_get_file_handle.assert_called_once_with()
@@ -224,7 +247,7 @@ class TestConfigurationSettingMixin(TestCase):
 
 	@mock.patch('weatherlink.serial.ConfigurationSettingMixin.read_config_setting')
 	def test_read_setup_bit(self, mock_read_config_setting):
-		mock_read_config_setting.return_value = str(chr(0b10101110))
+		mock_read_config_setting.return_value = six.int2byte(0b10101110)
 
 		bit = self.communicator.read_setup_bit(0b10)
 
@@ -233,7 +256,7 @@ class TestConfigurationSettingMixin(TestCase):
 
 		mock_read_config_setting.reset_mock()
 
-		mock_read_config_setting.return_value = str(chr(0b10101101))
+		mock_read_config_setting.return_value = six.int2byte(0b10101101)
 
 		bit = self.communicator.read_setup_bit(0b10)
 
@@ -242,7 +265,7 @@ class TestConfigurationSettingMixin(TestCase):
 
 		mock_read_config_setting.reset_mock()
 
-		mock_read_config_setting.return_value = str(chr(0b10101101))
+		mock_read_config_setting.return_value = six.int2byte(0b10101101)
 
 		bit = self.communicator.read_setup_bit(0b110)
 
@@ -251,7 +274,7 @@ class TestConfigurationSettingMixin(TestCase):
 
 		mock_read_config_setting.reset_mock()
 
-		mock_read_config_setting.return_value = str(chr(0b10101111))
+		mock_read_config_setting.return_value = six.int2byte(0b10101111)
 
 		bit = self.communicator.read_setup_bit(0b110)
 
@@ -260,7 +283,7 @@ class TestConfigurationSettingMixin(TestCase):
 
 	@mock.patch('weatherlink.serial.ConfigurationSettingMixin.read_config_setting')
 	def test_read_rain_collector_type(self, mock_read_config_setting):
-		mock_read_config_setting.return_value = str(chr(0b10101110))
+		mock_read_config_setting.return_value = six.int2byte(0b10101110)
 
 		collector_type = RainCollectorTypeSerial(self.communicator.read_rain_collector_type())
 
@@ -269,7 +292,7 @@ class TestConfigurationSettingMixin(TestCase):
 
 		mock_read_config_setting.reset_mock()
 
-		mock_read_config_setting.return_value = str(chr(0b10011110))
+		mock_read_config_setting.return_value = six.int2byte(0b10011110)
 
 		collector_type = RainCollectorTypeSerial(self.communicator.read_rain_collector_type())
 
@@ -278,7 +301,7 @@ class TestConfigurationSettingMixin(TestCase):
 
 		mock_read_config_setting.reset_mock()
 
-		mock_read_config_setting.return_value = str(chr(0b10001110))
+		mock_read_config_setting.return_value = six.int2byte(0b10001110)
 
 		collector_type = RainCollectorTypeSerial(self.communicator.read_rain_collector_type())
 
