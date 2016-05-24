@@ -79,7 +79,7 @@ class MySQLExporter(object):
 		'thsw_index_high': 'thsw_index_high',
 	}
 
-	ARCHIVE_ATTRIBUTES_TO_COPY = frozenset({
+	ARCHIVE_SIMPLE_ATTRIBUTES_TO_COPY = frozenset({
 		'timestamp',
 		'date',
 		'minutes_covered',
@@ -91,9 +91,7 @@ class MySQLExporter(object):
 		'humidity_inside',
 		'barometric_pressure',
 		'wind_speed',
-		'wind_direction_prevailing',
 		'wind_speed_high',
-		'wind_direction_speed_high',
 		'rain_amount',
 		'rain_rate',
 		'rain_amount_clicks',
@@ -103,6 +101,11 @@ class MySQLExporter(object):
 		'uv_index',
 		'uv_index_high',
 		'evapotranspiration',
+	})
+
+	ARCHIVE_WIND_DIRECTION_ATTRIBUTES_TO_COPY = frozenset({
+		'wind_direction_prevailing',
+		'wind_direction_speed_high',
 	})
 
 	DEFAULT_TIME_ZONE = pytz.timezone('America/Chicago')
@@ -229,9 +232,13 @@ class MySQLExporter(object):
 	def _add_physical_values_to_arguments(self, record, arguments):
 		column_map = self.archive_table_column_map
 
-		for attribute in self.ARCHIVE_ATTRIBUTES_TO_COPY:
+		for attribute in self.ARCHIVE_SIMPLE_ATTRIBUTES_TO_COPY:
 			if attribute in record:
 				arguments[column_map[attribute]] = record[attribute]
+
+		for attribute in self.ARCHIVE_WIND_DIRECTION_ATTRIBUTES_TO_COPY:
+			if attribute in record:
+				arguments[column_map[attribute]] = record[attribute].name  # Use the wind direction enum name
 
 	def _add_calculated_values_to_arguments(self, record, arguments):
 		column_map = self.archive_table_column_map
