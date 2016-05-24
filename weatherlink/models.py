@@ -22,25 +22,6 @@ DASH_LARGE_NEGATIVE = -32768
 DASH_ZERO = 0
 DASH_SMALL = 255
 
-WIND_DIRECTION_CODE_MAP = [
-	'N',  # 0
-	'NNE',  # 1
-	'NE',  # 2
-	'ENE',  # 3
-	'E',  # 4
-	'ESE',  # 5
-	'SE',  # 6
-	'SSE',  # 7
-	'S',  # 8
-	'SSW',  # 9
-	'SW',  # 10
-	'WSW',  # 11
-	'W',  # 12
-	'WNW',  # 13
-	'NW',  # 14
-	'NNW',  # 15
-]
-
 STRAIGHT_NUMBER = int
 
 STRAIGHT_DECIMAL = decimal.Decimal
@@ -76,6 +57,7 @@ def convert_timestamp_to_datetime(timestamp):
 	return datetime.datetime(year, month, day, hour, minute)
 
 
+@enum.unique
 class BarometricTrend(enum.Enum):
 	falling_rapidly = -60
 	falling_slowly = -20
@@ -84,6 +66,7 @@ class BarometricTrend(enum.Enum):
 	rising_rapidly = 60
 
 
+@enum.unique
 class WindDirection(enum.Enum):
 	N = 0
 	NNE = 1
@@ -101,6 +84,11 @@ class WindDirection(enum.Enum):
 	WNW = 13
 	NW = 14
 	NNW = 15
+
+	def __init__(self, value):
+		self.degrees = value * 22.5
+		if self.degrees == 0.0:
+			self.degrees = 360.0
 
 	@staticmethod
 	def from_degrees(degrees):
@@ -131,6 +119,7 @@ class RainCollectorType(enum.Enum):
 	pass
 
 
+@enum.unique
 class RainCollectorTypeSerial(RainCollectorType):
 	inches_0_01 = 0x00
 	millimeters_0_2 = 0x10
@@ -143,6 +132,7 @@ RainCollectorTypeSerial.millimeters_0_1.clicks_to_inches = lambda c: c * _HUNDRE
 RainCollectorTypeSerial.millimeters_0_1.clicks_to_centimeters = lambda c: c * _HUNDREDTHS
 
 
+@enum.unique
 class RainCollectorTypeDatabase(RainCollectorType):
 	inches_0_1 = 0x0000
 	inches_0_01 = 0x1000
@@ -289,8 +279,8 @@ class DailySummary(RecordDict):
 		('wind_speed_average', TENTHS, DASH_ZERO, ),
 		('wind_daily_run', TENTHS, DASH_ZERO, ),
 		('wind_speed_high_10_minute_average', TENTHS, DASH_LARGE_NEGATIVE, ),
-		('wind_speed_high_direction', WIND_DIRECTION_CODE_MAP.__getitem__, DASH_SMALL, ),
-		('wind_speed_high_10_minute_average_direction', WIND_DIRECTION_CODE_MAP.__getitem__, DASH_SMALL, ),
+		('wind_speed_high_direction', WindDirection, DASH_SMALL, ),
+		('wind_speed_high_10_minute_average_direction', WindDirection, DASH_SMALL, ),
 		('rain_total', THOUSANDTHS, None, ),
 		('rain_rate_high', HUNDREDTHS, None, ),
 		('ds2_version', STRAIGHT_NUMBER, None, ),
@@ -343,13 +333,13 @@ class ArchiveIntervalRecord(RecordDict):
 		'h'  # low outside temp this time period in tenths of degrees
 		'h'  # current inside temp in tenths of degrees
 		'h'  # barometric pressure in thousandths of inches of mercury
-		'h'  # outside humitidy in tenths of percents
-		'h'  # inside humitidy in tenths of percents
+		'h'  # outside humidity in tenths of percents
+		'h'  # inside humidity in tenths of percents
 		'H'  # raw rain clicks (clicks masked with type)
 		'h'  # high rain rate this time period in raw clicks/hr
 		'h'  # wind speed in tenths of miles per hour
 		'h'  # hi wind speed this time period in tenths of miles per hour
-		'b'  # previaling wind direction (0-15, 255)
+		'b'  # prevailing wind direction (0-15, 255)
 		'b'  # hi wind speed direction (0-15, 255)
 		'h'  # number of wind samples this time period
 		'h'  # average solar rad this time period in watts / meter squared
@@ -369,8 +359,8 @@ class ArchiveIntervalRecord(RecordDict):
 		'h'  # average solar rad this time period in watts / meter squared
 		'H'  # number of wind samples this time period
 		'h'  # current inside temp in tenths of degrees
-		'B'  # inside humitidy in tenths of percents
-		'B'  # outside humitidy in tenths of percents
+		'B'  # inside humidity in tenths of percents
+		'B'  # outside humidity in tenths of percents
 		'B'  # wind speed in tenths of miles per hour
 		'B'  # hi wind speed this time period in tenths of miles per hour
 		'B'  # hi wind speed direction (0-15, 255)
@@ -408,8 +398,8 @@ class ArchiveIntervalRecord(RecordDict):
 		('__special', STRAIGHT_NUMBER, None, ),
 		('wind_speed', TENTHS, DASH_SMALL, ),
 		('wind_speed_high', TENTHS, DASH_ZERO, ),
-		('wind_direction_prevailing', WIND_DIRECTION_CODE_MAP.__getitem__, DASH_SMALL, ),
-		('wind_direction_speed_high', WIND_DIRECTION_CODE_MAP.__getitem__, DASH_SMALL, ),
+		('wind_direction_prevailing', WindDirection, DASH_SMALL, ),
+		('wind_direction_speed_high', WindDirection, DASH_SMALL, ),
 		('number_of_wind_samples', STRAIGHT_NUMBER, DASH_ZERO, ),
 		('solar_radiation', STRAIGHT_NUMBER, DASH_LARGE_NEGATIVE, ),
 		('solar_radiation_high', STRAIGHT_NUMBER, DASH_LARGE_NEGATIVE, ),
@@ -432,13 +422,18 @@ class ArchiveIntervalRecord(RecordDict):
 		('humidity_outside', STRAIGHT_NUMBER, DASH_SMALL, ),
 		('wind_speed', STRAIGHT_DECIMAL, DASH_SMALL, ),
 		('wind_speed_high', STRAIGHT_DECIMAL, DASH_ZERO, ),
-		('wind_direction_speed_high', WIND_DIRECTION_CODE_MAP.__getitem__, DASH_SMALL, ),
-		('wind_direction_prevailing', WIND_DIRECTION_CODE_MAP.__getitem__, DASH_SMALL, ),
+		('wind_direction_speed_high', WindDirection, DASH_SMALL, ),
+		('wind_direction_prevailing', WindDirection, DASH_SMALL, ),
 		('uv_index', TENTHS, DASH_SMALL, ),
 		('evapotranspiration', THOUSANDTHS, DASH_ZERO, ),
 		('solar_radiation_high', STRAIGHT_NUMBER, DASH_LARGE, ),
 		('uv_index_high', TENTHS, DASH_SMALL, ),
 		('record_version', STRAIGHT_NUMBER, None, ),
+	)
+
+	RECORD_WIND_DIRECTION_SPECIAL = (
+		('wind_direction_prevailing', 'wind_direction_prevailing_degrees', ),
+		('wind_direction_speed_high', 'wind_direction_speed_high_degrees', ),
 	)
 
 	@classmethod
@@ -472,6 +467,12 @@ class ArchiveIntervalRecord(RecordDict):
 		record.rain_rate_clicks = rain_rate_clicks
 		record.rain_amount = record.rain_collector_type.clicks_to_inches(rain_clicks)
 		record.rain_rate = record.rain_collector_type.clicks_to_inches(rain_rate_clicks)
+
+		for k1, k2 in cls.RECORD_WIND_DIRECTION_SPECIAL:
+			if record[k1]:
+				record[k2] = record[k1].degrees
+			else:
+				record[k2] = None
 
 		record.date = (
 			datetime.datetime(year, month, day, 0, 0) + datetime.timedelta(minutes=record.minutes_past_midnight)
@@ -513,6 +514,12 @@ class ArchiveIntervalRecord(RecordDict):
 		record.rain_rate_clicks = rain_rate_clicks
 		record.rain_amount = record.rain_collector_type.clicks_to_inches(rain_clicks)
 		record.rain_rate = record.rain_collector_type.clicks_to_inches(rain_rate_clicks)
+
+		for k1, k2 in cls.RECORD_WIND_DIRECTION_SPECIAL:
+			if record[k1]:
+				record[k2] = record[k1].degrees
+			else:
+				record[k2] = None
 
 		record.timestamp = (arguments[0] << 16) + arguments[1]
 		record.date = convert_timestamp_to_datetime(record.timestamp)
