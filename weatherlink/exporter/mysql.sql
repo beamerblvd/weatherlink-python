@@ -149,8 +149,8 @@ CREATE TABLE `weather_calculated_summary` (
     `thsw_index_low_timestamp` datetime null COMMENT 'The date and time that thsw_index_low was recorded',
     `thsw_index_high` decimal(4,1) NULL COMMENT 'The high temperature-humidity-sun-wind index temperature during the summary period in ºF',
     `thsw_index_high_timestamp` datetime null COMMENT 'The date and time that thsw_index_high was recorded',
-    `integrated_heating_degree_days` decimal(4,1) unsigned NULL COMMENT 'The total heating degree days for the summary period in ºF',
-    `integrated_cooling_degree_days` decimal(4,1) unsigned NULL COMMENT 'The total cooling degree days for the summary period in ºF',
+    `integrated_heating_degree_days` decimal(5,1) unsigned NULL COMMENT 'The total heating degree days for the summary period in ºF',
+    `integrated_cooling_degree_days` decimal(5,1) unsigned NULL COMMENT 'The total cooling degree days for the summary period in ºF',
     PRIMARY KEY (`summary_id`),
     UNIQUE INDEX `g$summary_locator_day` (`summary_type`, `summary_year`, `summary_month`, `summary_day`, `summary_week`),
     INDEX `g$summary_locator_week` (`summary_type`, `summary_year`, `summary_week`)

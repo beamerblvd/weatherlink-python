@@ -690,7 +690,7 @@ class MySQLExporter(object):
 				# This limit might have to be increased if the 3-hour rain event threshold is changed
 				cursor.execute(
 					'SELECT timestamp_station, rain_total, rain_rate_high FROM weather_archive_record '
-					'WHERE timestamp_station > %s ORDER BY timestamp_station LIMIT 400;',
+					'WHERE timestamp_station > %s ORDER BY timestamp_station LIMIT 1440;',
 					[start_record[0]],
 				)
 				for (timestamp_station, rain_total, rain_rate_high) in cursor:
