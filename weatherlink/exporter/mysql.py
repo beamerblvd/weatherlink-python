@@ -237,7 +237,7 @@ class MySQLExporter(object):
 				arguments[column_map[attribute]] = record[attribute]
 
 		for attribute in self.ARCHIVE_WIND_DIRECTION_ATTRIBUTES_TO_COPY:
-			if attribute in record:
+			if attribute in record and record[attribute]:
 				arguments[column_map[attribute]] = record[attribute].name  # Use the wind direction enum name
 
 	def _add_calculated_values_to_arguments(self, record, arguments):
