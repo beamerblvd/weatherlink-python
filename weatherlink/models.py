@@ -488,6 +488,7 @@ class ArchiveIntervalRecord(RecordDict):
 			response_handle.read(cls.RECORD_LENGTH_DOWNLOAD),
 		)
 		if arguments[0] < 1:
+			print('WARN: Record ignored due to datestamp < 1: date %s, time %s' % (arguments[0], arguments[1]))
 			return None
 
 		for k, v in six.iteritems(cls.RECORD_VERIFICATION_MAP_DOWNLOAD):

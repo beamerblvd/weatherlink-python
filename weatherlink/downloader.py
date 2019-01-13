@@ -13,18 +13,20 @@ _requests_session = requests.Session()
 
 class Downloader(object):
 	WEATHER_LINK_URL = (
-		'http://weatherlink.com/webdl.php?timestamp={timestamp}&user={username}&pass={password}&action={action}'
+		'https://api.weatherlink.com/webdl.php?'
+		'timestamp={timestamp}&user={username}&pass={password}&apiToken={api_token}&action={action}'
 	)
 	ACTION_HEADERS = 'headers'
 	ACTION_DOWNLOAD = 'data'
 	ARCHIVE_RECORD_LENGTH = 52
 
-	def __init__(self, username, password):
-		assert username
-		assert password
+	def __init__(self, username, password, api_token):
+		if not (username and password and api_token):
+			raise ValueError('Username, password, and API token are required')
 
 		self.username = username
 		self.password = password
+		self.api_token = api_token
 
 		self.console_version = None
 		self.record_minute_span = None
@@ -39,11 +41,12 @@ class Downloader(object):
 			timestamp=timestamp,
 			username=self.username,
 			password=self.password,
+			api_token=self.api_token,
 			action=self.ACTION_HEADERS,
 		)
 
 		response = _requests_session.get(url)
-		assert response.headers['Content-Type'] == 'text/html', '%s' % response.headers['Content-Type']
+		assert response.headers['Content-Type'] in ('text/html', 'text/plain'), '%s' % response.headers['Content-Type']
 
 		self._process_headers(response.text)
 
@@ -51,15 +54,20 @@ class Downloader(object):
 			timestamp=timestamp,
 			username=self.username,
 			password=self.password,
+			api_token=self.api_token,
 			action=self.ACTION_DOWNLOAD,
 		)
 
-		response = _requests_session.get(url, stream=True)
+		headers = {'Accept-Encoding': 'identity'}
+
+		response = _requests_session.get(url, headers=headers, stream=True)
 		assert response.headers['Content-Type'] == 'application/octet-stream', '%s' % response.headers['Content-Type']
-		assert (
-			response.headers['Content-Transfer-Encoding'] == 'binary', '%s' %
-			response.headers['Content-Transfer-Encoding']
+		assert response.headers['Content-Transfer-Encoding'] == 'binary', '%s' % (
+			response.headers['Content-Transfer-Encoding'],
 		)
+
+		if response.headers.get('Content-Encoding') in ('br', 'compress', 'deflate', 'gzip'):
+			raise ValueError('Got response with unacceptable content encoding %s' % response.headers['Content-Encoding'])
 
 		self._process_download(response.raw)
 
@@ -86,6 +94,7 @@ class Downloader(object):
 		for i in range(0, self.record_count):
 			record = ArchiveIntervalRecord.load_from_download(download_response_handle, self.record_minute_span)
 			if not record:
+				print('WARN: Halted at record %s because false-y' % i)
 				break
 
 			self.records.append(record)

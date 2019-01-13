@@ -19,9 +19,9 @@ from weatherlink.utils import calculate_all_record_values
 
 # tests/data/sample_download.bin can be used to test _process_download directly
 
-downloader = Downloader(sys.argv[1], sys.argv[2])
+downloader = Downloader(sys.argv[1], sys.argv[2], sys.argv[3])
 
-downloader.download(dateutil.parser.parse(sys.argv[3]))
+downloader.download(dateutil.parser.parse(sys.argv[4]))
 
 print 'Console version: %s' % downloader.console_version
 print 'Record minute span: %s' % downloader.record_minute_span
