@@ -152,9 +152,11 @@ class WundergroundExporter(object):
 
 		response = self._session.get(url)
 
-		assert 200 <= response.status_code < 300, 'Status code %s unexpected' % response.status_code
+		if not (200 <= response.status_code < 300):
+			raise AssertionError('Status code %s unexpected' % response.status_code)
 
-		assert response.text == 'success', 'Response "%s" unexpected' % response.text
+		if response.text != 'success':
+			raise AssertionError('Response "%s" unexpected' % response.text)
 
 	def send_simple_update(self, record):
 		self.record_queue.appendleft(record)

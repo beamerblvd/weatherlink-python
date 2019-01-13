@@ -8,9 +8,9 @@ packages = find_packages(exclude=['tests', 'tests.*'])
 
 install_requirements = [
 	'six>=1.10.0',
-	'enum34>=1.1.5',
+	'enum34>=1.1.5;python_version<"3.4"',
 	'pytz>=2016.4',
-	'requests==2.9.1',
+	'requests>=2.9.1',
 	'mysql_connector_python>=2.0.4',
 ]
 
@@ -19,15 +19,10 @@ dependency_links = [
 ]
 
 test_requirements = [
-	'argparse==1.4.0',
-	'coverage==4.0.3',
-	'nose==1.3.7',
-	'funcsigs==1.0.2',
-	'mock==2.0.0',
-	'nosexcover==1.0.10',
-	'traceback2==1.4.0',
-	'linecache2==1.0.0',
-	'unittest2==1.1.0',
+	'mock>=2.0.0',
+	'pytest',
+	'pytest-cov',
+	'python-dateutil',
 ]
 
 if sys.argv[-1] == 'info':
@@ -42,7 +37,6 @@ if sys.argv[-1] == 'tag':
 	os.system('git push --tags')
 	sys.exit()
 
-
 setup(
 	name='weatherlink',
 	version=__version__,
@@ -56,4 +50,8 @@ setup(
 	install_requires=install_requirements,
 	dependency_links=dependency_links,
 	tests_require=test_requirements,
+	setup_requires=['pytest-runner'],
+	extras_require={
+		'testing': test_requirements,
+	},
 )

@@ -48,11 +48,11 @@ def convert_timestamp_to_datetime(timestamp):
 	date_part = timestamp >> 16
 	time_part = timestamp - (date_part << 16)
 
-	year = (date_part / 512) + 2000
-	month = (date_part - ((year - 2000) * 512)) / 32
-	day = date_part - ((year - 2000) * 512) - (month * 32)
-	hour = time_part / 100
-	minute = time_part - (hour * 100)
+	year = int((date_part / 512) + 2000)
+	month = int((date_part - ((year - 2000) * 512)) / 32)
+	day = int(date_part - ((year - 2000) * 512) - (month * 32))
+	hour = int(time_part / 100)
+	minute = int(time_part - (hour * 100))
 
 	return datetime.datetime(year, month, day, hour, minute)
 
@@ -308,7 +308,8 @@ class DailySummary(RecordDict):
 		)
 
 		for k, v in six.iteritems(cls.DAILY_SUMMARY_VERIFICATION_MAP):
-			assert arguments[k] == v
+			if arguments[k] != v:
+				raise AssertionError('{} did not match expected {}'.format(arguments[k], v))
 
 		kwargs = {}
 		for i, v in enumerate(arguments):
@@ -444,7 +445,8 @@ class ArchiveIntervalRecord(RecordDict):
 		)
 
 		for k, v in six.iteritems(cls.RECORD_VERIFICATION_MAP_WLK):
-			assert arguments[k] == v
+			if arguments[k] != v:
+				raise AssertionError('{} did not match expected {}'.format(arguments[k], v))
 
 		kwargs = {}
 		for i, v in enumerate(arguments):
@@ -492,7 +494,8 @@ class ArchiveIntervalRecord(RecordDict):
 			return None
 
 		for k, v in six.iteritems(cls.RECORD_VERIFICATION_MAP_DOWNLOAD):
-			assert arguments[k] == v
+			if arguments[k] != v:
+				raise AssertionError('{} did not match expected {}'.format(arguments[k], v))
 
 		kwargs = {}
 		for i, v in enumerate(arguments):
@@ -587,7 +590,7 @@ class LoopRecord(RecordDict):
 	)
 
 	LOOP2_RECORD_VERIFICATION_MAP_WLK = {
-		0: 'LOO',
+		0: b'LOO',
 		2: 1,
 		3: 0x7FFF,
 		9: 0xFF,
@@ -602,8 +605,8 @@ class LoopRecord(RecordDict):
 		38: 0x7FFF,
 		39: 0x7FFF,
 		40: 0x7FFF,
-		41: '\n',
-		42: '\r',
+		41: b'\n',
+		42: b'\r',
 	}
 
 	LOOP2_RECORD_SPECIAL_HANDLING = frozenset(LOOP2_RECORD_VERIFICATION_MAP_WLK.keys())
@@ -685,7 +688,8 @@ class LoopRecord(RecordDict):
 		unpacked = struct.unpack_from(cls.LOOP2_RECORD_FORMAT, data)
 
 		for k, v in six.iteritems(cls.LOOP2_RECORD_VERIFICATION_MAP_WLK):
-			assert unpacked[k] == v
+			if unpacked[k] != v:
+				raise AssertionError('{} did not match expected {}'.format(unpacked[k], v))
 
 		arguments = {'crc_match': calculate_weatherlink_crc(data) == 0, 'record_type': 2}
 

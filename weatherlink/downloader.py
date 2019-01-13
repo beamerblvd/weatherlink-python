@@ -46,7 +46,8 @@ class Downloader(object):
 		)
 
 		response = _requests_session.get(url)
-		assert response.headers['Content-Type'] in ('text/html', 'text/plain'), '%s' % response.headers['Content-Type']
+		if response.headers['Content-Type'] not in ('text/html', 'text/plain'):
+			raise AssertionError(str(response.headers['Content-Type']))
 
 		self._process_headers(response.text)
 
@@ -61,10 +62,10 @@ class Downloader(object):
 		headers = {'Accept-Encoding': 'identity'}
 
 		response = _requests_session.get(url, headers=headers, stream=True)
-		assert response.headers['Content-Type'] == 'application/octet-stream', '%s' % response.headers['Content-Type']
-		assert response.headers['Content-Transfer-Encoding'] == 'binary', '%s' % (
-			response.headers['Content-Transfer-Encoding'],
-		)
+		if response.headers['Content-Type'] != 'application/octet-stream':
+			raise AssertionError(str(response.headers['Content-Type']))
+		if response.headers['Content-Transfer-Encoding'] != 'binary':
+			raise AssertionError(str(response.headers['Content-Transfer-Encoding']))
 
 		if response.headers.get('Content-Encoding') in ('br', 'compress', 'deflate', 'gzip'):
 			raise ValueError('Got response with unacceptable content encoding %s' % response.headers['Content-Encoding'])
@@ -78,7 +79,8 @@ class Downloader(object):
 			k, v = line.split('=', 1)
 			headers[k.strip()] = v.strip()
 
-		assert headers['Model'] == '16'
+		if headers['Model'] != '16':
+			raise AssertionError(headers['Model'])
 
 		self.console_version = headers['ConsoleVer']  # The console firmware version
 		self.record_minute_span = int(headers['ArchiveInt'])  # The console "archive interval" in minutes

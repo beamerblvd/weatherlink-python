@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+import io
 import mock
 from unittest import TestCase
 
@@ -174,7 +175,7 @@ class TestConfigurationSettingMixin(TestCase):
 	@mock.patch('weatherlink.serial.ConfigurationSettingMixin._get_file_handle')
 	@mock.patch('weatherlink.serial.ConfigurationSettingMixin._send_instruction')
 	def test_read_config_setting_defaults(self, mock_send_instruction, mock_get_file_handle, mock_crc):
-		mock_get_file_handle.return_value = mock.MagicMock(spec=file)
+		mock_get_file_handle.return_value = mock.MagicMock(spec=io.IOBase)
 		mock_get_file_handle.return_value.__enter__.return_value.read.return_value = b'\xFF\xE3\x03\x41'
 		mock_crc.return_value = 0
 
@@ -193,7 +194,7 @@ class TestConfigurationSettingMixin(TestCase):
 	@mock.patch('weatherlink.serial.ConfigurationSettingMixin._get_file_handle')
 	@mock.patch('weatherlink.serial.ConfigurationSettingMixin._send_instruction')
 	def test_read_config_setting_return_crc(self, mock_send_instruction, mock_get_file_handle, mock_crc):
-		mock_get_file_handle.return_value = mock.MagicMock(spec=file)
+		mock_get_file_handle.return_value = mock.MagicMock(spec=io.IOBase)
 		mock_get_file_handle.return_value.__enter__.return_value.read.return_value = b'\xF3\x14\x5E'
 		mock_crc.return_value = 0
 
@@ -212,7 +213,7 @@ class TestConfigurationSettingMixin(TestCase):
 	@mock.patch('weatherlink.serial.ConfigurationSettingMixin._get_file_handle')
 	@mock.patch('weatherlink.serial.ConfigurationSettingMixin._send_instruction')
 	def test_read_config_setting_crc_fails(self, mock_send_instruction, mock_get_file_handle, mock_crc):
-		mock_get_file_handle.return_value = mock.MagicMock(spec=file)
+		mock_get_file_handle.return_value = mock.MagicMock(spec=io.IOBase)
 		mock_get_file_handle.return_value.__enter__.return_value.read.return_value = b'\xFF\xE3\x03\x41'
 		mock_crc.return_value = 123489
 
@@ -230,7 +231,7 @@ class TestConfigurationSettingMixin(TestCase):
 	@mock.patch('weatherlink.serial.ConfigurationSettingMixin._get_file_handle')
 	@mock.patch('weatherlink.serial.ConfigurationSettingMixin._send_instruction')
 	def test_read_config_setting_crc_ignored(self, mock_send_instruction, mock_get_file_handle, mock_crc):
-		mock_get_file_handle.return_value = mock.MagicMock(spec=file)
+		mock_get_file_handle.return_value = mock.MagicMock(spec=io.IOBase)
 		mock_get_file_handle.return_value.__enter__.return_value.read.return_value = b'\xF3\x14\x5E'
 		mock_crc.return_value = 123489
 

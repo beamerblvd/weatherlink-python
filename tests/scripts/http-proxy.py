@@ -11,7 +11,7 @@ it will block indefinitely since this script handles only one connection at a ti
 To exit the proxy, press Ctrl+C.
 """
 
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 
 import collections
 import socket
@@ -64,7 +64,7 @@ def process_data(headers, read_from, write_to):
 
 def main():
 	proxy_to, proxy_listen = sys.argv[1], sys.argv[2]
-	print 'Proxying connections to server %s on address %s:80.' % (proxy_to, proxy_listen, )
+	print('Proxying connections to server %s on address %s:80.' % (proxy_to, proxy_listen, ))
 
 	server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	server.bind((proxy_listen, 80))
@@ -78,7 +78,7 @@ def main():
 			incoming, _ = server.accept()
 
 			i += 1
-			print
+			print()
 
 			with open('tests/data/http-proxy-request-%s.bin' % i, 'wb') as handle:
 				outgoing = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -88,18 +88,18 @@ def main():
 
 				# Read and forward the URL
 				prelude = process_prelude(last_four, incoming, outgoing)
-				print 'Passing through request to server: %s' % prelude.strip()
+				print('Passing through request to server: %s' % prelude.strip())
 				handle.write(prelude)
 
 				# Read and forward the headers
 				headers = process_headers(last_four, incoming, outgoing)
-				print 'Request headers: %s ' % headers
+				print('Request headers: %s ' % headers)
 				handle.write('%s\n' % headers)
 
 				# If there's a content length, we need to send data, too
 				data = process_data(headers, incoming, outgoing)
 				if data:
-					print 'Data sent: %s' % repr(data)
+					print('Data sent: %s' % repr(data))
 					handle.write(data)
 					handle.write('\n')
 				handle.write('\n')
@@ -108,22 +108,22 @@ def main():
 
 				# Read and return the response
 				prelude = process_prelude(last_four, outgoing, incoming)
-				print 'Passing through response to client: %s' % prelude.strip()
+				print('Passing through response to client: %s' % prelude.strip())
 				handle.write(prelude)
 
 				# Read and return the headers
 				headers = process_headers(last_four, outgoing, incoming)
-				print 'Response headers: %s ' % headers
+				print('Response headers: %s ' % headers)
 				handle.write('%s\n' % headers)
 
 				# If there's a content length, we need to receive data, too
 				data = process_data(headers, outgoing, incoming)
 				if data:
-					print 'Data received: %s' % repr(data)
+					print('Data received: %s' % repr(data))
 					handle.write(data)
 		except KeyboardInterrupt:
 			server.close()
-			print
+			print()
 			break
 		finally:
 			if incoming:

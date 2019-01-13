@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 
 import sys
 
@@ -8,25 +8,25 @@ from weatherlink.utils import calculate_all_record_values
 
 importer = Importer(sys.argv[1])
 
-print 'Reading file %s' % importer.file_name
-print 'Year %s' % importer.year
-print 'Month %s' % importer.month
-print
+print('Reading file %s' % importer.file_name)
+print('Year %s' % importer.year)
+print('Month %s' % importer.month)
+print()
 
 importer.import_data()
 
 for day, day_index in enumerate(importer.header.day_indexes):
 	if day > 0 and day_index.record_count > 0:
-		print 'Day %s (%s records, offset %s):' % (day, day_index.record_count, day_index.start_index)
-		print '-' * 250
+		print('Day %s (%s records, offset %s):' % (day, day_index.record_count, day_index.start_index))
+		print('-' * 250)
 
 		summary = importer.daily_summaries[day]
 		output = ''
 		for item in summary.DAILY_SUMMARY_ATTRIBUTE_MAP:
 			if item[0][-8:] != '_version':
 				output += str(summary[item[0]] or '-') + '  '
-		print output
-		print '-' * 250
+		print(output)
+		print('-' * 250)
 
 		assert day_index.record_count - 2 == len(importer.daily_records[day])
 
@@ -38,6 +38,6 @@ for day, day_index in enumerate(importer.header.day_indexes):
 			output += str(record.rain_amount) + '  ' + str(record.rain_rate) + '  '
 			values = calculate_all_record_values(record)
 			output += '(plus %s calculated values)' % len(values)
-			print output
+			print(output)
 
-		print
+		print()

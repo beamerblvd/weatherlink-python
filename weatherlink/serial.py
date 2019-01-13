@@ -51,6 +51,7 @@ class CRCValidationError(IOError):
 	pass
 
 
+@six.add_metaclass(abc.ABCMeta)
 class SerialCommunicator(object):
 	"""
 	This is an abstract serial communicator class that defines the interface for connecting to and communicating with
@@ -61,8 +62,6 @@ class SerialCommunicator(object):
 	ACK confirmations and the common pattern of confirming ACKs after sending instructions, and it provides a context
 	manager interface so that connect and disconnect do not have to be called directly.
 	"""
-	__metaclass__ = abc.ABCMeta
-
 	def __init__(self, *args, **kwargs):
 		"""
 		Constructs a serial communicator. *args and **kwargs are specified so that we can have a well-behaving
@@ -236,9 +235,8 @@ class SerialIPCommunicator(SerialCommunicator):
 						raise
 
 
+@six.add_metaclass(abc.ABCMeta)
 class ConfigurationSettingMixin(SerialCommunicator):
-	__metaclass__ = abc.ABCMeta
-
 	CONFIG_READ_INSTRUCTION = 'EEBRD %s %s\n'
 	CONFIG_WRITE_INSTRUCTION = 'EEBWR %s %s\n'
 

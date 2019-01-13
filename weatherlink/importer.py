@@ -15,8 +15,10 @@ class Importer(object):
 	EXPECTED_FILE_NAME_LENGTH = 7
 
 	def __init__(self, file_name):
-		assert file_name
-		assert file_name[-self.FILE_EXTENSION_LENGTH:] == self.FILE_EXTENSION
+		if not file_name:
+			raise ValueError('file_name')
+		if file_name[-self.FILE_EXTENSION_LENGTH:] != self.FILE_EXTENSION:
+			raise ValueError('file_name')
 
 		self.file_name = file_name
 

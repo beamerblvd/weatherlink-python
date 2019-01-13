@@ -101,6 +101,10 @@ class TestTimestampConversion(TestCase):
 		)
 
 
+def l_range(*args):
+	return list(range(*args))
+
+
 class TestBarometricTrend(TestCase):
 	def test_expected_values(self):
 		self.assertEqual(BarometricTrend.falling_rapidly, BarometricTrend(-60))
@@ -110,7 +114,10 @@ class TestBarometricTrend(TestCase):
 		self.assertEqual(BarometricTrend.rising_rapidly, BarometricTrend(60))
 
 	def test_unexpected_values(self):
-		for i in range(-100, -60) + range(-59, -20) + range(-19, 0) + range(1, 20) + range(21, 60) + range(61, 101):
+		for i in (
+			l_range(-100, -60) + l_range(-59, -20) + l_range(-19, 0) +
+			l_range(1, 20) + l_range(21, 60) + l_range(61, 101)
+		):
 			with self.assertRaises(ValueError):
 				BarometricTrend(i)
 
@@ -135,12 +142,12 @@ class TestWindDirection(TestCase):
 		self.assertEqual(WindDirection.NNW, WindDirection(15))
 
 	def test_unexpected_values(self):
-		for i in range(-100, 0) + range(16, 100):
+		for i in l_range(-100, 0) + l_range(16, 100):
 			with self.assertRaises(ValueError):
 				WindDirection(i)
 
 	def test_expected_degrees(self):
-		for i in range(350, 360) + range(1, 12):
+		for i in l_range(350, 360) + l_range(1, 12):
 			self.assertEqual(WindDirection.N, WindDirection.from_degrees(i), i)
 
 		for i in range(12, 35):
@@ -189,7 +196,7 @@ class TestWindDirection(TestCase):
 			self.assertEqual(WindDirection.NNW, WindDirection.from_degrees(i), i)
 
 	def test_unexpected_degrees(self):
-		for i in range(-100, 0) + range(361, 500):
+		for i in l_range(-100, 0) + l_range(361, 500):
 			self.assertIsNone(WindDirection.from_degrees(i), i)
 
 
@@ -348,7 +355,7 @@ class TestLoopRecord(TestCase):
 			timestamp_read, sep, ack = struct.unpack_from('<L1sB', handle.read(6))
 
 			self.assertIsNotNone(timestamp_read)
-			self.assertEqual('\n', sep)
+			self.assertEqual(b'\n', sep)
 			self.assertEqual(curses.ascii.ACK, ack)
 
 			records = [LoopRecord.load_loop_2_from_connection(handle) for _ in range(0, 15)]

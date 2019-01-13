@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 
 import dateutil.parser
 import sys
@@ -23,11 +23,11 @@ downloader = Downloader(sys.argv[1], sys.argv[2], sys.argv[3])
 
 downloader.download(dateutil.parser.parse(sys.argv[4]))
 
-print 'Console version: %s' % downloader.console_version
-print 'Record minute span: %s' % downloader.record_minute_span
-print 'Max records: %s' % downloader.max_account_records
-print 'Record count %s' % downloader.record_count
-print 'Records processed: %s' % len(downloader.records)
+print('Console version: %s' % downloader.console_version)
+print('Record minute span: %s' % downloader.record_minute_span)
+print('Max records: %s' % downloader.max_account_records)
+print('Record count %s' % downloader.record_count)
+print('Records processed: %s' % len(downloader.records))
 
 for record in downloader.records:
 	output = str(record.date) + '  (' + str(record.timestamp) + ')  '
@@ -37,4 +37,4 @@ for record in downloader.records:
 	output += str(record.rain_amount) + '  ' + str(record.rain_rate) + '  '
 	values = calculate_all_record_values(record)
 	output += '(plus %s calculated values)' % len(values)
-	print output
+	print(output)

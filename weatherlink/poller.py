@@ -8,6 +8,8 @@ from __future__ import absolute_import
 import abc
 import threading
 
+import six
+
 from weatherlink.models import LoopRecord
 from weatherlink.serial import (
 	ConfigurationSettingMixin,
@@ -16,9 +18,8 @@ from weatherlink.serial import (
 )
 
 
+@six.add_metaclass(abc.ABCMeta)
 class Poller(ConfigurationSettingMixin, SerialCommunicator):
-	__metaclass__ = abc.ABCMeta
-
 	POLL_INSTRUCTION = 'LPS %s %s\n'
 
 	# Set poller.packet_type to one of these (defaults to LOOP2), or set it to

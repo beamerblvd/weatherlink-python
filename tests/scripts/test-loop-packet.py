@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 
 import curses.ascii
 import datetime
@@ -19,41 +19,41 @@ with open('tests/scripts/test-loop-output.bin', 'wb') as handle:
 
 	handle.write('\n')
 
-	print 'Connecting to WeatherLinkIP...'
+	print('Connecting to WeatherLinkIP...')
 	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	sock.connect(('192.168.1.132', 22222, ))
-	print
+	print()
 
-	print 'Reading rain collector size...'
+	print('Reading rain collector size...')
 	sock.sendall('EEBRD 2B 01\n')  # "read the EEPROM," "start at position x2B / 43 (setup bits)," "read 0x01 / 1 bytes"
 	ack = sock.recv(1)
 	if ack == chr(curses.ascii.ACK):
-		print 'Expected ACK received...'
+		print('Expected ACK received...')
 	else:
-		print 'Unknown ACK received: %s...' % ack
+		print('Unknown ACK received: %s...' % ack)
 	setup_bits = sock.recv(1)
 	crc = sock.recv(2)
 	handle.write(ack)
 	handle.write(setup_bits)
 	handle.write(crc)
 	handle.write('\n')
-	print 'CRC: %s vs %s = result %s...' % (
+	print('CRC: %s vs %s = result %s...' % (
 		calculate_weatherlink_crc(setup_bits),
 		struct.unpack_from('<h', crc)[0],
 		calculate_weatherlink_crc(setup_bits + crc),
-	)
+	))
 	collector_type = RainCollectorTypeSerial(ord(setup_bits) & 0x30)
-	print 'Rain collector type is %s.' % collector_type
-	print
+	print('Rain collector type is %s.' % collector_type)
+	print()
 
-	print 'Requesting loop packets...'
+	print('Requesting loop packets...')
 	sock.sendall('LPS 2 30\n')  # "request loop packets," "type LOOP2," "30 packets"
 
 	ack = sock.recv(1)
 	if ack == chr(curses.ascii.ACK):
-		print 'Expected ACK received...'
+		print('Expected ACK received...')
 	else:
-		print 'Unknown ACK received: %s...' % ack
+		print('Unknown ACK received: %s...' % ack)
 	handle.write(struct.pack('<B', ord(ack)))
 
 	sock_file = sock.makefile()
@@ -74,18 +74,18 @@ with open('tests/scripts/test-loop-output.bin', 'wb') as handle:
 		w2ma = float(w2ma) / 10
 		w10mg = float(w10mg) / 10
 
-		print '%s: %s' % (
+		print('%s: %s' % (
 			(i + 1),
 			(
 				bar_trend, barometer, in_temp, in_hum, out_temp, wind, wind_direction, w10ma, w2ma, w10mg, w10mgd, dew,
 				out_hum, heat, chill, thsw, rain, uv, rad, r_storm, r_day, r_15, r_60, evap, r_24, minute,
 			),
-		)
+		))
 
-		print 'CRC: %s vs %s = result %s' % (
+		print('CRC: %s vs %s = result %s' % (
 			calculate_weatherlink_crc(data[:-2]),
 			struct.unpack_from('<h', data[-2:])[0],
 			calculate_weatherlink_crc(data),
-		)
+		))
 
 sock.close()
