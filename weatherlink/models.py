@@ -84,6 +84,7 @@ class WindDirection(enum.Enum):
 	WNW = 13
 	NW = 14
 	NNW = 15
+	NONE = -9999
 
 	def __init__(self, value):
 		self.degrees = value * 22.5
@@ -452,6 +453,8 @@ class ArchiveIntervalRecord(RecordDict):
 		for i, v in enumerate(arguments):
 			if i not in cls.RECORD_VERIFICATION_MAP_WLK and i not in cls.RECORD_SPECIAL_HANDLING_WLK:
 				k = cls.RECORD_ATTRIBUTE_MAP_WLK[i][0]
+				if 'wind' in k.lower() and v < 0:
+					v = -9999
 				if v == cls.RECORD_ATTRIBUTE_MAP_WLK[i][2]:
 					kwargs[k] = None
 				else:
