@@ -94,9 +94,12 @@ class Downloader(object):
 		self.records = []
 
 		for i in range(0, self.record_count):
-			record = ArchiveIntervalRecord.load_from_download(download_response_handle, self.record_minute_span)
-			if not record:
-				print('WARN: Halted at record %s because false-y' % i)
-				break
+			try:
+				record = ArchiveIntervalRecord.load_from_download(download_response_handle, self.record_minute_span)
+				if not record:
+					print('WARN: Halted at record %s because false-y' % i)
+					break
 
-			self.records.append(record)
+				self.records.append(record)
+			except AssertionError:
+				continue
